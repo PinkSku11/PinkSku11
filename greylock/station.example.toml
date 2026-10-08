@@ -1,0 +1,55 @@
+# greylock — station configuration
+# One copy of this file per station (summit / home).  Only [station] and [hardware]
+# differ between them; [sites], [analysis] and [sim] are shared.
+
+[station]
+name = "summit"               # label for this station's ledger files
+site = "greylock_summit"      # which entry of [sites] this station is at NOW
+clock = "CS1"                 # which cesium unit is here NOW (edit when you swap)
+ledger_dir = "data/ledger"    # relative to this file
+cadence_s = 1
+
+[hardware]
+ticc_port   = "/dev/ttyACM0"  # TAPR TICC (USB)        chA <- cesium 1PPS, chB <- GNSS 1PPS, REF <- cesium 10 MHz
+ticc_baud   = 115200
+ublox_port  = "/dev/ttyUSB0"  # ZED-F9T / NEO-F10T      TIM-TP + NAV-PVT at 1 Hz, raw RXM-RAWX/SFRBX logged
+ublox_baud  = 38400
+ublox_raw_log = true          # keep the raw UBX stream for RINEX / PPP later
+cesium_port = "/dev/ttyUSB1"  # 5071A RS-232 (9600 8N1) — health polling only, never frequency commands
+cesium_health_every_s = 600
+# ups_name = "summit-ups"     # a NUT ups name; records on_battery = true when mains is lost
+qerr_sign = 1                 # +1 or -1; `greylock zerobase` decides it from data
+
+[acquire]
+stale_pulse_s = 15            # no TICC pulse for this long -> event record + status error
+min_free_gb = 1.0             # below this, raw UBX logging stops (ti records continue)
+
+[sites.cambridge]             # the sea-level reference station
+lat = 42.360
+lon = -71.092
+height_m = 6.0                # orthometric (NAVD88) height of the clock, not the antenna
+height_sigma_m = 2.0
+reference = true
+
+[sites.greylock_summit]
+lat = 42.637
+lon = -73.166
+height_m = 1063.4             # Mount Greylock summit, NAVD88; adjust to the clock's actual floor
+height_sigma_m = 1.0
+
+[analysis]
+reference_site = "cambridge"
+min_calibration_days = 5      # a clock's own rate needs at least this many co-located days
+
+# ---- digital twin: `greylock simulate station.toml` --------------------------------
+[sim]
+start = "2027-05-23T00:00:00Z"
+cadence_s = 60                # 60 s records keep a season small; use 1 for a short realistic test
+
+[sim.clocks.CS1]
+intrinsic_offset = 1.2e-13    # fractional frequency error of this unit (spec allows ±5e-13)
+itinerary = [["cambridge", 14], ["greylock_summit", 80], ["cambridge", 80]]
+
+[sim.clocks.CS2]
+intrinsic_offset = -0.6e-13
+itinerary = [["cambridge", 94], ["greylock_summit", 80], ["cambridge", 14]]

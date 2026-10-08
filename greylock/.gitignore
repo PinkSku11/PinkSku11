@@ -1,0 +1,7 @@
+data/
+*.egg-info/
+__pycache__/
+.pytest_cache/
+.venv/
+station.toml
+station-live.toml

@@ -1,0 +1,11 @@
+# /etc/cron.d/greylock — the station's daily routine (UTC).
+# 00:10  write commitment files and the daily report; the report lands next to the
+#        ledger so an rsync of data/ carries it home.
+# 00:20  convert yesterday's raw UBX to RINEX (no-op if convbin is not installed).
+# Adjust paths to the install; the venv's greylock is on no one's PATH by default.
+GL=/home/pi/greylock/.venv/bin/greylock
+CFG=/home/pi/greylock/station.toml
+
+10 0 * * * pi $GL commit $CFG && $GL report $CFG > /home/pi/greylock/data/ledger/daily-report.txt 2>&1
+12 0 * * * pi $GL report $CFG --post > /home/pi/greylock/data/ledger/daily-post.txt 2>&1
+20 0 * * * pi $GL rinex $CFG --day $(date -u -d yesterday +\%Y-\%m-\%d) >> /home/pi/greylock/data/ledger/rinex.log 2>&1

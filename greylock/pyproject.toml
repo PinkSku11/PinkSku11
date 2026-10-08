@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "greylock"
+version = "0.2.0"
+description = "Software for a real (forward) time machine: cesium clock vs GPS time on a mountain"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+dependencies = ["numpy>=1.24"]
+
+[project.optional-dependencies]
+hardware = ["pyserial>=3.5", "smbus2>=0.4"]
+plots = ["matplotlib>=3.7"]
+dev = ["pytest>=7"]
+
+[project.scripts]
+greylock = "greylock.cli:main"
+
+[tool.setuptools]
+packages = ["greylock"]
+
+[tool.setuptools.package-data]
+greylock = ["readout.html", "station.example.toml"]
