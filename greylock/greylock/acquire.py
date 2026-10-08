@@ -74,17 +74,31 @@ def free_gb(path: Path) -> float:
 
 
 class RollingRawLog:
-    """Daily raw UBX files with a low-disk cutoff.  write() never raises."""
+    """Daily raw UBX files with a low-disk cutoff.  write() never raises.
 
-    def __init__(self, directory: Path, min_free_gb: float = 1.0):
+    The free-disk check runs at every UTC-midnight rollover AND every
+    CHECK_EVERY_S during the day, so the min_free_gb reserve cannot be eaten
+    between midnights.  While suspended, a reopen is attempted quietly at the
+    same cadence; only an actual state change (suspended ↔ writing) returns an
+    event string, so a persistent failure cannot flood the ledger.  Files are
+    named per station so two stations' ledger directories can be merged
+    (README step 4) without one overwriting the other's raw data.
+    """
+
+    CHECK_EVERY_S = 60.0
+
+    def __init__(self, directory: Path, min_free_gb: float = 1.0, station: str = ""):
         self.dir = Path(directory)
         self.min_free_gb = min_free_gb
+        self.station = station
         self._fh = None
         self._day = None
+        self._last_check = None
         self.suspended = False
 
     def path_for(self, t_unix: float) -> Path:
-        return self.dir / time.strftime("ubx-%Y-%m-%d.bin", time.gmtime(t_unix))
+        stem = f"ubx-{self.station}-" if self.station else "ubx-"
+        return self.dir / (stem + time.strftime("%Y-%m-%d.bin", time.gmtime(t_unix)))
 
     def write(self, data: bytes, t_unix: float | None = None) -> str | None:
         """Returns an event string on a state change (suspended/resumed), else None."""
@@ -93,23 +107,40 @@ class RollingRawLog:
         event = None
         try:
             if day != self._day:
+                self._day = day            # set FIRST: a failed open must not re-enter here
+                self._last_check = None
                 if self._fh:
                     self._fh.close()
                     self._fh = None
+            if self._last_check is None or abs(t - self._last_check) >= self.CHECK_EVERY_S:
+                self._last_check = t
                 low = free_gb(self.dir) < self.min_free_gb
                 if low and not self.suspended:
                     self.suspended, event = True, "raw UBX logging suspended: low disk"
+                    if self._fh:
+                        self._fh.close()
+                        self._fh = None
                 elif not low and self.suspended:
-                    self.suspended, event = False, "raw UBX logging resumed"
-                if not self.suspended:
+                    # resume only once the file actually opens again; stay quiet otherwise
+                    try:
+                        self.dir.mkdir(parents=True, exist_ok=True)
+                        self._fh = self.path_for(t).open("ab")
+                        self.suspended, event = False, "raw UBX logging resumed"
+                    except OSError:
+                        pass
+            if not self.suspended:
+                if self._fh is None:
                     self.dir.mkdir(parents=True, exist_ok=True)
                     self._fh = self.path_for(t).open("ab")
-                self._day = day
-            if self._fh and not self.suspended:
                 self._fh.write(data)
         except OSError as exc:
             if not self.suspended:
                 self.suspended, event = True, f"raw UBX logging suspended: {exc}"
+            if self._fh:
+                try:
+                    self._fh.close()
+                except OSError:
+                    pass
             self._fh = None
         return event
 
@@ -255,6 +286,7 @@ def run(cfg: Config, simulate: bool = False, max_records: int | None = None, sta
         envm = EnvironmentModel(outside_mean_c=15.0 - 0.0065 * site.height_m)
         grav = gravitational_rate(site, cfg.reference)
         cadence = float(st.get("cadence_s", 1))
+        qerr_sign = int(hw.get("qerr_sign", 1))   # report qErr as the receiver would (sim.py's convention)
 
         def source():
             t = time.time()
@@ -262,7 +294,7 @@ def run(cfg: Config, simulate: bool = False, max_records: int | None = None, sta
                 temp, outside, press = envm.sample(t)
                 x = clock.step(cadence, grav, temp)
                 err, qerr = rx.step(cadence)
-                yield t, (x - err) * 1e9, qerr, temp, press, None
+                yield t, (x - err) * 1e9, qerr_sign * qerr, temp, press, None
                 t += cadence
                 stop.wait(max(0.0, t - time.time()))
         src = source()
@@ -272,7 +304,7 @@ def run(cfg: Config, simulate: bool = False, max_records: int | None = None, sta
         sensor = open_sensor()
         if sensor is None:
             shared.error("env: no BME280 found — temperature will not be logged")
-        raw = RollingRawLog(cfg.ledger_dir / "ubx", min_free) if hw.get("ublox_raw_log", True) else None
+        raw = RollingRawLog(cfg.ledger_dir / "ubx", min_free, station=site_name) if hw.get("ublox_raw_log", True) else None
         threading.Thread(target=_ticc_thread, args=(hw["ticc_port"], hw.get("ticc_baud", 115200),
                                                     q, shared, stop), daemon=True).start()
         threading.Thread(target=_ublox_thread, args=(hw["ublox_port"], hw.get("ublox_baud", 38400),
@@ -311,7 +343,7 @@ def run(cfg: Config, simulate: bool = False, max_records: int | None = None, sta
         for t, ti, qerr, temp, press, extra in src:
             now = time.time()
             if t is STALE:
-                if now - last_stale_event > stale_s:   # one event per dry spell, not per timeout
+                if last_stale_event == 0.0:   # entry into a dry spell: one event, not one per timeout
                     last_stale_event = now
                     with lock:
                         ledger.append({"t": round(now, 3), "kind": "event", "site": site_name,

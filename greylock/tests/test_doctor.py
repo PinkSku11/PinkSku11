@@ -26,6 +26,17 @@ def test_zero_baseline_finds_the_sign():
     assert doctor.zero_baseline(ti, q)["recommend"] == -1
 
 
+def test_zero_baseline_groups_prevent_cross_clock_swamping():
+    # two clocks ~1 ms apart: pooled first-differences would bury the sawtooth
+    # (review finding); within-group differences recover the sign cleanly
+    ti1, q1 = _synth_ti(sign=+1, seed=11)
+    ti2, q2 = _synth_ti(sign=+1, seed=12)
+    ti = np.concatenate([ti1, ti2 + 1e6])
+    q = np.concatenate([q1, q2])
+    gids = np.concatenate([np.zeros(len(ti1)), np.ones(len(ti2))])
+    assert doctor.zero_baseline(ti, q, group_ids=gids)["recommend"] == 1
+
+
 def test_zero_baseline_inconclusive_on_zero_qerr():
     ti, _ = _synth_ti()
     out = doctor.zero_baseline(ti, np.zeros_like(ti))

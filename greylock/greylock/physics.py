@@ -106,9 +106,10 @@ def transport_offset_ns(track, reference: Site) -> float:
         t, lat, h, v, v_east = sample
         if prev is not None:
             dt = t - prev[0]
-            site = Site("moving", lat, 0.0, h)
-            r = gravitational_rate(site, reference) + velocity_rate(v) + sagnac_rate(v_east, lat)
-            total += r * dt
+            if dt > 0:   # out-of-order or duplicated samples add nothing, never subtract
+                site = Site("moving", lat, 0.0, h)
+                r = gravitational_rate(site, reference) + velocity_rate(v) + sagnac_rate(v_east, lat)
+                total += r * dt
         prev = sample
     return total * 1e9
 

@@ -115,7 +115,9 @@ def daily_report(cfg: Config, day: str | None = None, result: dict | None = None
         lines.append("")
         for name, s in sorted(hb.items()):
             age = time.time() - float(s.get("t", 0))
-            lines.append(f"heartbeat {name}: {age:.0f} s ago, last ti {s.get('last_ti_ns', float('nan')):.1f} ns"
+            ti = s.get("last_ti_ns")   # null while the station is in a stale-pulse spell
+            ti_txt = f"last ti {ti:.1f} ns" if isinstance(ti, (int, float)) else "last ti n/a (stale)"
+            lines.append(f"heartbeat {name}: {age:.0f} s ago, {ti_txt}"
                          + (f", errors: {'; '.join(s['errors'])}" if s.get("errors") else ""))
 
     lines.append("")

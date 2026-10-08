@@ -57,6 +57,57 @@ def test_temperature_coefficient_recovered():
     assert any("thermostat" in n for n in s.notes)
 
 
+def test_load_survives_temp_c_null(tmp_path):
+    # hardware without a BME280 writes temp_c: null — one such record must not
+    # take down the entire analysis (review finding, reproduced)
+    from pathlib import Path
+
+    from greylock import config
+    from greylock.ledger import Ledger
+
+    cfg = config.load(Path(__file__).parent.parent / "station.example.toml")
+    led = Ledger(tmp_path, "cambridge")
+    led.append({"t": T0, "site": "cambridge", "clock": "CS1", "ti_ns": 1.0,
+                "qerr_ps": 0.0, "temp_c": None, "press_hpa": None, "on_battery": False})
+    led.append({"t": T0 + 1, "site": "cambridge", "clock": "CS1", "ti_ns": 2.0,
+                "qerr_ps": 0.0, "temp_c": 25.0, "press_hpa": 1013.0, "on_battery": False})
+    led.close()
+    by_clock = analysis.load(cfg, ledger_dir=tmp_path)
+    temps = [r[3] for r in by_clock["CS1"]]
+    assert np.isnan(temps[0]) and temps[1] == 25.0
+
+
+def test_temp_coefficient_survives_partial_time_correlation():
+    # a thermal term partly correlated with time must not be attenuated into the
+    # slope (Frisch–Waugh fix; review finding)
+    rng = np.random.default_rng(8)
+    d = np.arange(14)
+    temps = 25.0 + 0.3 * d + 2.0 * np.sin(d)
+
+    def temp(day, k):
+        return float(temps[day])
+
+    def ti(day, k):
+        return 10.0 * day + 5.0 * (temps[day] - 25.0) + float(rng.normal(0, 0.2))
+
+    segs = analysis.segments_for("CS1", _recs(14, ti_fn=ti, temp_fn=temp), T0)
+    assert abs(segs[0].temp_coeff_ns_per_c - 5.0) < 1.0
+
+
+def test_purely_linear_temperature_drift_is_named_not_zeroed():
+    d = np.arange(14)
+    temps = 24.0 + 0.2 * d                 # the dangerous case: smooth drift
+
+    def temp(day, k):
+        return float(temps[day])
+
+    def ti(day, k):
+        return 10.0 * day + 5.0 * (temps[day] - 25.0)
+
+    segs = analysis.segments_for("CS1", _recs(14, ti_fn=ti, temp_fn=temp), T0)
+    assert any("indistinguishable" in n for n in segs[0].notes)
+
+
 def test_clean_segment_has_no_scary_notes():
     rng = np.random.default_rng(7)
 

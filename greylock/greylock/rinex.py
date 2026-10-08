@@ -17,7 +17,8 @@ from .config import Config
 
 def ubx_files(cfg: Config, day: str | None = None) -> list[Path]:
     d = cfg.ledger_dir / "ubx"
-    pattern = f"ubx-{day}.bin" if day else "ubx-*.bin"
+    # matches both the station-named ubx-<station>-YYYY-MM-DD.bin and the plain form
+    pattern = f"ubx-*{day}.bin" if day else "ubx-*.bin"
     return sorted(d.glob(pattern))
 
 

@@ -99,6 +99,39 @@ def test_transport_from_ledger(tmp_path):
     assert 0.1 < out["offset_ns"] < 0.6       # the design note's ~0.35 ns drive leg
 
 
+def test_transport_refuses_interleaved_stations(tmp_path):
+    # both stations' ledgers in one directory (the normal analysis layout) must
+    # not be read as one non-monotonic track (review finding)
+    text = EXAMPLE.read_text().replace('ledger_dir = "data/ledger"',
+                                       f'ledger_dir = "{tmp_path.as_posix()}/led"')
+    p = tmp_path / "station.toml"
+    p.write_text(text)
+    cfg = config.load(p)
+    for station, h in (("a_station", 6.0), ("b_station", 1063.0)):
+        led = Ledger(cfg.ledger_dir, station)
+        for i in range(5):
+            led.append({"t": 1_800_000_000.0 + i * 60.0, "site": "cambridge", "clock": "CS1",
+                        "ti_ns": 0.0, "h_msl": h, "g_speed": 0.0})
+        led.close()
+    out = export.transport_report(cfg)
+    assert not out["ok"] and "--station" in out["error"]
+    assert export.transport_report(cfg, station="a_station")["ok"]
+
+
+def test_report_survives_stale_heartbeat(season):
+    # a status file written during a TICC outage holds last_ti_ns: null — the
+    # report (and /api/report) must render, not crash (review finding)
+    cfg, result = season
+    status = cfg.ledger_dir / "greylock_summit-status.json"
+    status.write_text('{"t": 1800000000.0, "records": 5, "last_ti_ns": null, '
+                      '"errors": ["no pulse for > 15 s"], "site": "greylock_summit", "clock": "CS1"}')
+    try:
+        text = reportgen.daily_report(cfg, day="2027-06-05", result=result)
+        assert "n/a (stale)" in text
+    finally:
+        status.unlink()
+
+
 def test_rinex_graceful_without_convbin(tmp_path):
     text = EXAMPLE.read_text().replace('ledger_dir = "data/ledger"',
                                        f'ledger_dir = "{tmp_path.as_posix()}/led"')

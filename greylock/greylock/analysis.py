@@ -97,8 +97,9 @@ def load(cfg: Config, ledger_dir=None):
         if "ti_ns" not in rec:
             continue  # health / event records
         ti = float(rec["ti_ns"]) + qerr_sign * float(rec.get("qerr_ps", 0.0)) / 1000.0
+        tv = rec.get("temp_c")   # hardware without a BME280 writes null, not a number
         by_clock[rec["clock"]].append((float(rec["t"]), rec["site"], ti,
-                                       float(rec.get("temp_c", float("nan"))),
+                                       float(tv) if tv is not None else float("nan"),
                                        bool(rec.get("on_battery", False))))
     for k in by_clock:
         by_clock[k].sort(key=lambda r: r[0])
@@ -183,17 +184,28 @@ def _make_segment(clock, site, recs, epoch0) -> Segment:
             thresh = max(30.0, 8.0 * dmad)
             for i in np.where(np.abs(d - np.median(d)) > thresh)[0]:
                 seg.notes.append(f"possible phase step of {d[i]:+.1f} ns on {pts[i + 1].date}")
-        # temperature diagnostic: regress the fit residuals against case temperature;
-        # a significant coefficient times the temperature range is thermostat trouble
+        # temperature diagnostic.  The straight-line fit absorbs any part of a thermal
+        # term that is correlated with time, so regressing residuals on raw temperature
+        # would understate the coefficient; detrending temperature against time first
+        # (Frisch–Waugh) recovers the joint-fit coefficient.  A temperature history
+        # that is purely linear in time is fundamentally indistinguishable from clock
+        # drift — that case is named, not silently reported as zero.
         temps = np.array([p.temp_c for p in pts])
         good = np.isfinite(temps)
         if int(np.sum(good)) >= 5 and float(np.ptp(temps[good])) > 0.2:
-            _, tc, tc_err, _ = fit_line(temps[good], resid[good])
-            seg.temp_coeff_ns_per_c, seg.temp_coeff_err = tc, tc_err
             swing = float(np.ptp(temps[good]))
-            if math.isfinite(tc_err) and abs(tc) > 3 * tc_err and abs(tc) * swing > 0.5:
-                seg.notes.append(f"temperature-correlated residuals: {tc:+.2f} ± {tc_err:.2f} ns/°C "
-                                 f"over a {swing:.1f} °C swing — check the thermostat")
+            ta, tb, _, _ = fit_line(x[good], temps[good])
+            tres = temps[good] - (ta + tb * x[good])
+            if float(np.ptp(tres)) > 0.1:
+                _, tc, tc_err, _ = fit_line(tres, resid[good])
+                seg.temp_coeff_ns_per_c, seg.temp_coeff_err = tc, tc_err
+                if math.isfinite(tc_err) and abs(tc) > 3 * tc_err and abs(tc) * swing > 0.5:
+                    seg.notes.append(f"temperature-correlated residuals: {tc:+.2f} ± {tc_err:.2f} ns/°C "
+                                     f"over a {swing:.1f} °C swing — check the thermostat")
+            else:
+                seg.notes.append(f"case temperature drifted almost linearly with time "
+                                 f"({swing:.1f} °C over the segment) — a thermal term is "
+                                 f"indistinguishable from clock drift here")
     else:
         seg.valid = False
         seg.notes.append("fewer than 3 days: no rate fit")

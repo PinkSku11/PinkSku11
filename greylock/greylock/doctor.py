@@ -252,7 +252,9 @@ def ti_sanity(ti_ns: np.ndarray, step_ns: float = 50.0) -> list[str]:
     return notes
 
 
-def zero_baseline(ti_ns: np.ndarray, qerr_ps: np.ndarray) -> dict:
+def zero_baseline(ti_ns: np.ndarray, qerr_ps: np.ndarray,
+                  group_ids: np.ndarray | None = None,
+                  t: np.ndarray | None = None) -> dict:
     """Decide qerr_sign from data (the automated README step 5).
 
     For both candidate signs, correct the series and measure the per-pulse jitter
@@ -261,18 +263,42 @@ def zero_baseline(ti_ns: np.ndarray, qerr_ps: np.ndarray) -> dict:
     The right sign makes the jitter *smaller* than no correction; the wrong sign
     roughly doubles the sawtooth power.  Returns the numbers and a recommendation:
     +1, -1, or 0 when the difference is too small to call (e.g. qErr all zero).
+
+    `group_ids` marks samples from different (station, clock) series: differences
+    are never taken across a group boundary, so the ~µs offsets between clocks do
+    not swamp the ~ns sawtooth.  `t` (same length) additionally drops any pair
+    separated by more than 10× the group's median cadence (a clock that left and
+    came back is two runs, not one).
     """
     ti = np.asarray(ti_ns, float)
     q_ns = np.asarray(qerr_ps, float) / 1000.0
     if len(ti) < 10 or np.all(q_ns == 0):
         return {"recommend": 0, "reason": "not enough data or qErr all zero", "n": int(len(ti))}
+    gids = np.zeros(len(ti)) if group_ids is None else np.asarray(group_ids)
 
     def jitter(series):
-        return float(np.std(np.diff(series)))
+        diffs = []
+        for g in np.unique(gids):
+            sel = gids == g
+            s = series[sel]
+            if len(s) < 2:
+                continue
+            d = np.diff(s)
+            if t is not None:
+                dt = np.diff(np.asarray(t, float)[sel])
+                med = np.median(dt[dt > 0]) if np.any(dt > 0) else 1.0
+                d = d[dt <= 10 * med]
+            if len(d):
+                diffs.append(d)
+        if not diffs:
+            return float("nan")
+        return float(np.std(np.concatenate(diffs)))
 
     j0 = jitter(ti)
     jp = jitter(ti + q_ns)
     jm = jitter(ti - q_ns)
+    if not math.isfinite(j0):
+        return {"recommend": 0, "reason": "no usable within-group differences", "n": int(len(ti))}
     best = min(jp, jm)
     rec = 0
     if best < j0 * 0.98 and abs(jp - jm) > 0.05 * j0:
@@ -285,10 +311,16 @@ def zero_baseline(ti_ns: np.ndarray, qerr_ps: np.ndarray) -> dict:
 
 def zero_baseline_from_ledger(cfg: Config, clock: str | None = None,
                               last_hours: float | None = None) -> dict:
-    """Run the zero-baseline sign test on raw ledger records (uncorrected ti + qErr)."""
+    """Run the zero-baseline sign test on raw ledger records (uncorrected ti + qErr).
+
+    Records are grouped per (station, clock) and time-sorted within each group, so
+    a directory holding several stations' ledgers — the normal analysis layout —
+    still yields a clean per-series difference statistic.
+    """
     from .ledger import iter_records
     cutoff = time.time() - last_hours * 3600.0 if last_hours else None
-    ti, q = [], []
+    rows = []
+    gmap: dict[tuple, int] = {}
     for rec in iter_records(cfg.ledger_dir):
         if "ti_ns" not in rec:
             continue
@@ -296,9 +328,13 @@ def zero_baseline_from_ledger(cfg: Config, clock: str | None = None,
             continue
         if cutoff and float(rec["t"]) < cutoff:
             continue
-        ti.append(float(rec["ti_ns"]))
-        q.append(float(rec.get("qerr_ps", 0.0)))
-    out = zero_baseline(np.array(ti), np.array(q))
+        key = (rec.get("station") or rec.get("site"), rec.get("clock"))
+        rows.append((gmap.setdefault(key, len(gmap)), float(rec["t"]),
+                     float(rec["ti_ns"]), float(rec.get("qerr_ps", 0.0))))
+    rows.sort(key=lambda r: (r[0], r[1]))
+    arr = np.array(rows, float) if rows else np.zeros((0, 4))
+    out = zero_baseline(arr[:, 2], arr[:, 3], group_ids=arr[:, 0], t=arr[:, 1])
+    out["groups"] = len(gmap)
     out["configured_sign"] = int(cfg.hardware.get("qerr_sign", 1))
     if out["recommend"] and out["recommend"] != out["configured_sign"]:
         out["reason"] = (f"FLIP IT: data say qerr_sign = {out['recommend']}, "

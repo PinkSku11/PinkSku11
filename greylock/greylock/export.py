@@ -95,15 +95,17 @@ def _f(v):
 
 # --------------------------------------------------------------------------- transport
 def track_from_ledger(cfg: Config, station: str | None = None,
-                      t_start: float | None = None, t_end: float | None = None) -> list:
-    """(t, lat, h, speed, v_east) samples from records that carry NAV-PVT fields.
+                      t_start: float | None = None, t_end: float | None = None) -> dict:
+    """{station: [(t, lat, h, speed, v_east), ...]} from records carrying NAV-PVT fields.
 
     Records written by the acquisition daemon carry h_msl and g_speed, and (from
     v0.2) lat and vel_e.  Where lat/vel_e are missing (old records, simulations)
     the site's configured latitude and an eastward speed of zero are used — the
-    Sagnac term of a drive is below 0.1 ns either way.
+    Sagnac term of a drive is below 0.1 ns either way.  Samples are grouped per
+    station and time-sorted within each group: a directory holding both
+    stations' ledgers must never be read as one interleaved track.
     """
-    track = []
+    groups: dict[str, list] = {}
     for rec in iter_records(cfg.ledger_dir, station):
         if "ti_ns" not in rec or "h_msl" not in rec:
             continue
@@ -112,17 +114,27 @@ def track_from_ledger(cfg: Config, station: str | None = None,
             continue
         site = cfg.sites.get(rec.get("site"))
         lat = float(rec.get("lat", site.lat_deg if site else 42.5))
-        track.append((t, lat, float(rec["h_msl"]), float(rec.get("g_speed", 0.0)),
-                      float(rec.get("vel_e", 0.0))))
-    return track
+        key = rec.get("station") or rec.get("site") or "?"
+        groups.setdefault(key, []).append((t, lat, float(rec["h_msl"]),
+                                           float(rec.get("g_speed", 0.0)),
+                                           float(rec.get("vel_e", 0.0))))
+    for g in groups.values():
+        g.sort(key=lambda s: s[0])
+    return groups
 
 
 def transport_report(cfg: Config, station: str | None = None,
                      t_start: float | None = None, t_end: float | None = None) -> dict:
-    track = track_from_ledger(cfg, station, t_start, t_end)
-    if len(track) < 2:
+    groups = {k: v for k, v in track_from_ledger(cfg, station, t_start, t_end).items()
+              if len(v) >= 2}
+    if not groups:
         return {"ok": False, "error": "fewer than 2 track samples with h_msl in the ledger",
-                "n": len(track)}
+                "n": 0}
+    if len(groups) > 1:
+        return {"ok": False, "n": sum(len(v) for v in groups.values()),
+                "error": f"multiple stations have track records ({', '.join(sorted(groups))}); "
+                         "pass --station to pick one"}
+    (track,) = groups.values()
     ns = transport_offset_ns(track, cfg.reference)
     dur_h = (track[-1][0] - track[0][0]) / 3600.0
     hs = [s[2] for s in track]
