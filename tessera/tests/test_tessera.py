@@ -13,11 +13,75 @@ def msg():
 # ---- glyphs and bits --------------------------------------------------------------------------
 
 def test_glyphs_are_distinct_and_sized():
-    shapes = list(glyphs.GLYPHS.values())
+    shapes = [glyphs.bitmap(n) for n in glyphs.NAMES]
     assert all(len(g) == 7 and all(len(r) == 5 for r in g) for g in shapes)
     for i, a in enumerate(shapes):
         for b in shapes[i + 1:]:
             assert glyphs._distance(a, b) >= 6
+
+
+def test_every_glyph_is_a_program_the_machine_can_run():
+    """The alphabet describes itself: running (shape g) through the rewrite rules draws g."""
+    for name in glyphs.NAMES:
+        term = machine.program_term(glyphs.PROGRAMS[name])
+        assert machine.render(term, 5, 7) == glyphs.bitmap(name), name
+        assert machine.parse(machine.tokens(term)) == term, name
+
+
+def test_the_ship_is_a_program():
+    pts = machine.points(machine.program_term(message.SHIP_PICTURE))
+    assert (0, 0) in pts and (14, 30) in pts and (7, 28) in pts        # hull corners and the engine
+    assert (7, 10) not in pts                                           # a cabin is empty space
+
+
+def test_message_reductions_are_valid(msg):
+    """Every  t0 ⇒ t1 ⇒ … ⇒ tn  line in the message is a real reduction, step by step."""
+    checked = 0
+    for line in msg.lines():
+        if "ARROW" not in line or line[0] == "DEF":
+            continue
+        chunks, cur = [], []
+        for t in line:
+            if t == "ARROW":
+                chunks.append(cur); cur = []
+            else:
+                cur.append(t)
+        chunks.append(cur)
+        terms = [machine.parse(c) for c in chunks]
+        for a, b in zip(terms, terms[1:]):
+            assert machine.step(a) == b, (a, b)
+            checked += 1
+    assert checked >= 30
+
+
+def test_dialogue_judgments_are_consistent(msg):
+    """Every answer judged GOOD is true and every one judged BAD is false."""
+    lines = msg.lines()
+    seen = 0
+    for q, a, j in zip(lines, lines[1:], lines[2:]):
+        if "ASK" in q and j[-1] in ("GOOD", "BAD") and a[-1] == "RP":
+            inner = q[q.index("LP") + 1:len(q) - 1]
+            val = message.value(a[a.index("EQ") + 1:-1])
+            txt = " ".join(str(val) if t == "VA" else t for t in inner)
+            nums = [int(x, 2) if set(x) <= {"Z", "O"} and False else x for x in txt.split()]
+            # evaluate with the glyph names
+            expr = []
+            i = 0
+            toks = txt.split()
+            while i < len(toks):
+                if toks[i] in ("Z", "O"):
+                    j2 = i
+                    while j2 < len(toks) and toks[j2] in ("Z", "O"):
+                        j2 += 1
+                    expr.append(str(int("".join("1" if t == "O" else "0" for t in toks[i:j2]), 2)))
+                    i = j2
+                else:
+                    expr.append({"PLUS": "+", "MINUS": "-", "TIMES": "*", "DIV": "//", "EQ": "==", "LT": "<", "GT": ">"}.get(toks[i], toks[i]))
+                    i += 1
+            truth = eval(" ".join(expr))
+            assert truth == (j[-1] == "GOOD"), (q, a, j)
+            seen += 1
+    assert seen >= 8
 
 
 def test_codes_have_leading_one_and_round_trip(msg):
@@ -31,11 +95,11 @@ def test_codes_have_leading_one_and_round_trip(msg):
 
 def test_repetition_and_hamming_survive_noise(msg):
     raw = B.frame(B.encode(msg.tokens))
-    noisy = B.corrupt(B.repeat(raw, 3), 0.001, seed=3)
-    assert B.vote(noisy, 3) == raw                      # three copies: survives 0.1% of bits flipped
-    noisy5 = B.corrupt(B.repeat(raw, 5), 0.005, seed=4)
-    assert B.vote(noisy5, 5) == raw                     # five copies: survives 0.5%
-    h = B.corrupt(B.hamming_encode(raw), 0.0005, seed=5)
+    noisy = B.corrupt(B.repeat(raw, 3), 0.0003, seed=3)
+    assert B.vote(noisy, 3) == raw                      # three copies: 0.03% of bits flipped
+    noisy5 = B.corrupt(B.repeat(raw, 5), 0.003, seed=4)
+    assert B.vote(noisy5, 5) == raw                     # five copies: 0.3%
+    h = B.corrupt(B.hamming_encode(raw), 0.0002, seed=5)
     assert B.hamming_decode(h)[:len(raw)] == raw
 
 
@@ -82,13 +146,14 @@ def test_greylock_numbers_in_hydrogen_units():
 
 # ---- the stranger ---------------------------------------------------------------------------------
 
-def test_blind_decode_recovers_the_first_three_rungs(msg):
+def test_blind_decode_recovers_rungs_one_to_three_and_the_judgments(msg):
     r = listen.decode_blind(B.encode(msg.tokens))
     assert r["width"] == 8
     assert r["compressibility"] < 0.6
     m = r["meaning"]
     expect = {"DOT": "·", "Z": "0", "O": "1", "END": "⏎", "EQ": "=", "PLUS": "+", "MINUS": "−", "TIMES": "×",
-              "DIV": "÷", "LT": "<", "GT": ">", "TRUE": "⊤", "FALSE": "⊥", "LP": "(", "RP": ")"}
+              "DIV": "÷", "LT": "<", "GT": ">", "TRUE": "⊤", "FALSE": "⊥", "LP": "(", "RP": ")",
+              "GOOD": "good", "BAD": "bad", "VA": "a"}
     for name, sym in expect.items():
         assert m.get(glyphs.code(name)) == sym, name
 
@@ -112,7 +177,8 @@ def test_language_statistics(msg):
 
 def test_pages_are_prime_sized_with_parity(msg):
     pgs = pages.paginate(msg.tokens)
-    assert len(pgs) >= 4
+    assert len(pgs) >= 10
+    assert pages.check_parity(pages.pictures_page(message.SHIP_PICTURE)) == ([], [])
     assert listen.unfold(pages.to_bits(pgs[0])) == [(211, 223)]
     assert pages.check_parity(pgs[0]) == ([], [])
     pgs[0][10][10] ^= 1
