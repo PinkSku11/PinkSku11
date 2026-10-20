@@ -4,7 +4,7 @@ Given only a string of bits it tries to do what a reader of the ladder would do:
 find the token width, the alphabet, whether the thing looks like a language at
 all (Zipf's law, conditional entropy — the tests SETI runs on whale song), the
 statement delimiter, then the counting lesson, then the operators, then truth.
-What it recovers is reported as "token 0x8a means +".  Running this on our own
+What it recovers is reported as "token 0x85 means +".  Running this on our own
 message is the only honest test that the first rungs are decodable; it is also,
 unchanged, the tool for reading someone else's.
 """

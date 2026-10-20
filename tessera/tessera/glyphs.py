@@ -6,7 +6,7 @@ same primitives are rules in the rung-4 machine, so the message can state every
 glyph's shape as a definition (`≝ (shape g) ⇒ …`) and a reader who runs the rules
 gets the typeface back.  The alphabet describes itself.
 
-Families carry role in their frame: machine words have a bar above and below,
+Families carry role in their frame: machine words have a bar above,
 physics words a column either side, dialogue words four corner points.  Numbers,
 operators and logic are bare.  Codes are 1xxxxxxx; ids are the order of NAMES
 (append, never reorder).  `tessera glyphs --export` writes the programs to
@@ -246,30 +246,55 @@ def export(path: str) -> None:
 
 
 def load_overrides(path: str) -> int:
-    """Read glyphs.txt: NAME then primitive lines; returns how many glyphs were replaced."""
+    """Read glyphs.txt: NAME then primitive lines; returns how many glyphs were replaced.
+
+    Art lines ('| …') are decoration and never change a shape — so if a section's
+    art disagrees with what its program draws (an artist redrew the picture and
+    not the program), a warning names the glyph rather than letting the edit be
+    silently lost.
+    """
     if not os.path.exists(path):
         return 0
     n = 0
     cur = None
     prog: List[Prim] = []
+    rows: List[str] = []
+    mismatched: List[str] = []
 
     def flush():
         nonlocal n
         if cur in ID and prog:
             PROGRAMS[cur] = list(prog)
             n += 1
+            if len(rows) == H and all(len(r) == W and set(r) <= {"#", "."} for r in rows):
+                drawn = ["".join("#" if px else "." for px in row) for row in render(prog)]
+                if rows != drawn:
+                    mismatched.append(cur)
 
     with open(path) as f:
         for raw in f:
             line = raw.rstrip("\n")
-            if not line.strip() or line.lstrip().startswith("#") or line.lstrip().startswith("|"):
+            s = line.lstrip()
+            if not s or s.startswith("#"):
+                continue
+            if s.startswith("|"):
+                rows.append(s[1:].strip())
                 continue
             if not line.startswith(" ") and line.strip() in ID:
                 flush()
-                cur, prog = line.strip(), []
+                cur, prog, rows = line.strip(), [], []
                 continue
             parts = line.split()
             if parts and parts[0] in ("PT", "ROW", "COL", "RECT"):
                 prog.append(tuple([parts[0]] + [int(v) for v in parts[1:]]))
     flush()
+    if mismatched:
+        import warnings
+
+        warnings.warn(
+            "glyphs.txt: the art no longer matches the program for "
+            + ", ".join(mismatched)
+            + " — art lines are decoration; edit the PT/ROW/COL/RECT lines to change a shape",
+            stacklevel=2,
+        )
     return n

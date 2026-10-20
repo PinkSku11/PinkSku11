@@ -46,3 +46,27 @@
 | Code core | 12 | 8 | 4 | 0 |
 
 Tessera is the first companion record whose code arrived with it, and it is the better for it: the audit could *run* the central claim instead of trusting it. The timeship package and the Qiskit CTC bundle remain the two "existing" codebases this repository still cannot verify — same recommendation, third audit in a row.
+
+---
+
+# v0.2 audit addendum (same day) — the self-describing alphabet on trial
+
+*Four auditors re-ran the full programme against v0.2 (10,733 glyphs / 85,864 bits, 73 glyphs, the pictures rung, the dialogue rung), with v0.1 kept for diffing. Scorecard: 28 confirmed, 3 overstated, 1 fixed-in-v0.2, 8 regressions (v0.1 findings still present upstream), 1 new design trap (fixed in-repo).*
+
+## The headline claims all hold, at the strictest reading
+
+- **"The alphabet describes itself" is true in the message's own language.** For all 73 glyphs, the shape program as stated in the message — parsed by `machine.parse`, reduced by the machine's own rewrite rules, never by the Python renderer — yields exactly the point set of the renderer AND exactly the 5×7 cells physically stamped on the shipped pages (all 10,733 cells of pages 01–12 match). The one caveat: 7 of the 73 definition left-hand sides (END, RP, LP, SEP, ARROW, Z, O — the punctuation that cannot appear quoted inside a statement it would terminate) are told-not-derivable in the message's own grammar; a bracket-aware reader disambiguates all of them, but it is the same genre as the frame-mark finding.
+- **The ship is a program.** The message's `≝ (picture ship) ⇒ …` machine-reduces in 2,199 steps to a 15 × 31 picture — closed hull, six deck rows, engine block — matching the pictures page pixel-for-pixel at both scales. ("Cabin" is generous: a 3-px bar and an empty space.)
+- **The dialogue is semantically honest.** An independent extractor found 11 question–answer–judgement triples; every `good` answer is arithmetically true and every `bad` false, no exceptions. The closing sequence verifies token-by-token: *we want (you know (clock A > clock B)) / we not know (pulsar 1 period = a) / we ask you / we want (we know …)* — the message really ends by asking the reader for their epoch, and its literal last line is **"we want (you good)"**.
+- **Eighteen glyphs, no key, remap-proof.** `listen` recovers all 18 (now including the variable *a* and good/bad — by genuinely re-evaluating each answer against its question, no identities hardcoded) on 5/5 random code bijections and 3/3 with a different constant column. Instructive control: the Zipf slope does *not* separate the real message (−1.95) from shuffled noise (−1.95) — conditional entropy does (H₂ 2.06 vs 3.89).
+- **Everything reproduces.** All 37 shipped out/ files regenerate byte-for-byte; bits/stamp/units are byte-identical to v0.1; the payload integers are unchanged digit-for-digit; min pairwise Hamming is exactly 6 over all 2,628 pairs; 21/21 shipped tests pass.
+
+## Fixed in v0.2 (upstream) and in-repo (this commit)
+
+- **The v0.1 loader bug is structurally gone upstream**: glyphs.txt now stores programs; art rows carry a `| ` shield and are never parsed. And the v0.2 *record* dropped all three v0.1-audit overstatements (the 0.5-yr stamp claim, the repetition percentages, the 43,424 digit).
+- **New design trap, found and fixed in-repo**: art is decoration and programs are authoritative — so an artist who redraws only the art (exactly the workflow the record describes for Shriya) was silently ignored while the CLI printed "(using 73 glyph shapes from glyphs.txt)". `load_overrides` now compares each section's art against what its program draws and **warns by name** on mismatch. Regression tests added (art-only edit warns and changes nothing; program edits take silently; full 73-glyph round-trip; the ship's decks asserted). Suite: 25/25.
+- Three carried nits fixed in-repo: the `listen.py` docstring example (0x8a → 0x85 for +), the f_H citation (Hellwig et al. 1970, not Essen), and the glyphs docstring's "bar above and below" (no machine glyph has a bottom bar; it is a bar above, as the record correctly says).
+
+## Still open upstream (unchanged from the v0.1 audit, plus two new notes)
+
+Frame mark still told-not-discovered (the CLI strips it with the sender's own constant; `decode_blind` fails on framed bits); the admitted "counting" prior still understates the hardcoded lesson grammar, which now includes the dialogue shapes; the blind-packet rubric still leaks the ontology (now including pictures and dialogue); units.py still etches float64 noise in its low digits (exact-decimal recommended before anything is engraved — the exact G_DENOMINATOR ends …451, the code's …448); machine.parse still breaks on LP/RP-named atoms and truncated input (unreachable in the shipped message). New: the family marks (bar/columns/corners) are real on every glyph but **not exclusive** — every physics glyph geometrically also contains the dialogue corners, and the numeral Z contains all three marks, so role detection by mark alone collides; and the loader does not re-check the ≥6 Hamming guarantee after user edits.

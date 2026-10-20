@@ -12,7 +12,7 @@ from __future__ import annotations
 from fractions import Fraction
 
 C = 299_792_458.0
-F_H = 1_420_405_751.768              # Hz (Essen et al. 1971; CODATA)
+F_H = 1_420_405_751.768              # Hz (Hellwig et al. 1970; CODATA)
 TICK = 1.0 / F_H                      # s
 WAVE = C / F_H                        # m  (0.211 061 14 m)
 G0 = 9.806_65                         # m/s²
