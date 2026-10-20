@@ -1,0 +1,14 @@
+[Unit]
+Description=greylock readout page (the time machine's display)
+After=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/greylock
+ExecStart=/home/pi/greylock/.venv/bin/greylock serve /home/pi/greylock/station.toml --port 8080
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

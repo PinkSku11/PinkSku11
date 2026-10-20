@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Greylock Time Machine — readout</title>
+<style>
+  :root { --bg:#0e0f12; --panel:#171a20; --ink:#f3efe6; --ink2:#b9b4a8; --muted:#7d7a72; --line:#2a2e36;
+          --accent:#f2a93b; --blue:#5aa0ff; --ok:#3fbf7f; --bad:#e3564f; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  main { max-width:1040px; margin:0 auto; padding:28px 20px 60px; }
+  header { display:flex; justify-content:space-between; align-items:baseline; gap:16px; flex-wrap:wrap; }
+  h1 { font-size:18px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--ink2); margin:0; }
+  .stamp { color:var(--muted); font-size:13px; font-variant-numeric:tabular-nums; }
+  .hero { margin:26px 0 8px; padding:28px 28px 22px; background:var(--panel); border:1px solid var(--line); border-radius:14px; }
+  .hero .label { color:var(--ink2); font-size:15px; }
+  .hero .big { font-size:clamp(44px, 9vw, 96px); font-weight:700; line-height:1.05; font-variant-numeric:tabular-nums; color:var(--accent); margin:6px 0 2px; }
+  .hero .unit { font-size:clamp(18px,3vw,28px); color:var(--ink2); font-weight:500; margin-left:8px; }
+  .hero .sub { color:var(--ink2); margin-top:10px; font-size:17px; }
+  .hero .sub b { color:var(--ink); font-weight:600; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:12px; margin:14px 0; }
+  .tile { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+  .tile .k { color:var(--muted); font-size:12px; letter-spacing:.06em; text-transform:uppercase; }
+  .tile .v { font-size:26px; font-weight:600; margin-top:4px; font-variant-numeric:tabular-nums; }
+  .tile .d { color:var(--ink2); font-size:13px; margin-top:2px; }
+  .ok { color:var(--ok); } .bad { color:var(--bad); } .warn { color:var(--accent); }
+  .chart { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 18px 8px; margin:12px 0; }
+  .chart h2, .tbl h2 { font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin:0 0 8px; font-weight:600; }
+  svg { width:100%; height:240px; display:block; }
+  .legend { color:var(--ink2); font-size:13px; display:flex; gap:18px; margin-top:4px; }
+  .sw { display:inline-block; width:14px; height:3px; vertical-align:middle; margin-right:6px; border-radius:2px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; font-variant-numeric:tabular-nums; }
+  th, td { text-align:left; padding:8px 8px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:500; font-size:12px; letter-spacing:.05em; text-transform:uppercase; }
+  .tbl { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin:12px 0; overflow-x:auto; }
+  .foot { color:var(--muted); font-size:12px; margin-top:18px; }
+  code { color:var(--ink2); font-size:12px; word-break:break-all; white-space:pre-line; }
+  .empty { color:var(--ink2); padding:30px 0; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Greylock Time Machine</h1>
+    <div class="stamp" id="stamp">waiting for data…</div>
+  </header>
+
+  <section class="hero" id="hero">
+    <div class="label">The summit clock is ahead of sea-level time by</div>
+    <div class="big"><span id="lead">—</span><span class="unit">ns</span></div>
+    <div class="sub" id="sub">Boston is <b>—</b> younger · that is <b>—</b> of light</div>
+  </section>
+
+  <section class="grid">
+    <div class="tile"><div class="k">Measured rate</div><div class="v" id="rate">—</div><div class="d" id="rate_d">ns per day, clock's own rate removed</div></div>
+    <div class="tile"><div class="k">Predicted (gΔh/c²)</div><div class="v" id="pred">—</div><div class="d" id="pred_d">ns per day</div></div>
+    <div class="tile"><div class="k">Agreement</div><div class="v" id="agree">—</div><div class="d" id="agree_d">σ from prediction</div></div>
+    <div class="tile"><div class="k">Detection</div><div class="v" id="det">—</div><div class="d" id="det_d">signal ÷ its own error</div></div>
+  </section>
+
+  <section class="chart">
+    <h2>Lead over the deployment</h2>
+    <svg id="plot" viewBox="0 0 1000 240" preserveAspectRatio="none" aria-label="lead versus time"></svg>
+    <div class="legend"><span><i class="sw" style="background:var(--accent)"></i>measured daily lead</span><span><i class="sw" style="background:var(--blue)"></i>prediction</span></div>
+  </section>
+
+  <section class="tbl">
+    <h2>Deployments</h2>
+    <table><thead><tr><th>clock</th><th>site</th><th>from</th><th>to</th><th>days</th><th>measured</th><th>predicted</th><th>Δ (σ)</th><th>notes</th></tr></thead>
+    <tbody id="rows"><tr><td colspan="9" class="empty">no deployment yet</td></tr></tbody></table>
+  </section>
+
+  <section class="grid">
+    <div class="tile"><div class="k">Stations</div><div class="v" id="stations" style="font-size:16px">—</div><div class="d">last record age · last ti · errors</div></div>
+    <div class="tile"><div class="k">Latest ledger commitment</div><div class="v" style="font-size:13px"><code id="commit">—</code></div><div class="d">post this hash publicly each day</div></div>
+  </section>
+  <div class="foot">Numbers are nanoseconds (10⁻⁹ s). A positive lead means the summit clock has run fast relative to GPS (geoid-rate) time; equivalently, sea level is that much younger. Page refreshes every 30 s.</div>
+</main>
+<script>
+const fmt = (x, d=0) => (x==null || Number.isNaN(x)) ? "—" : x.toLocaleString(undefined, {maximumFractionDigits:d, minimumFractionDigits:d});
+const ago = s => s < 90 ? Math.round(s)+" s" : s < 5400 ? Math.round(s/60)+" min" : (s/3600).toFixed(1)+" h";
+
+function plot(lead) {
+  const svg = document.getElementById("plot");
+  svg.innerHTML = "";
+  const xs = lead.days || [], ys = lead.lead_ns || [], ps = lead.predicted_ns || [];
+  if (xs.length < 2) return;
+  const W=1000, H=240, L=56, R=12, T=12, B=28;
+  const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  const yAll = ys.concat(ps); let y0 = Math.min(0, ...yAll), y1 = Math.max(...yAll); if (y1 - y0 < 1) y1 = y0 + 1;
+  const sx = x => L + (x - x0) / (x1 - x0) * (W - L - R);
+  const sy = y => T + (1 - (y - y0) / (y1 - y0)) * (H - T - B);
+  const ns = "http://www.w3.org/2000/svg";
+  const el = (n, a) => { const e = document.createElementNS(ns, n); for (const k in a) e.setAttribute(k, a[k]); svg.appendChild(e); return e; };
+  // grid + labels
+  const ticks = 4;
+  for (let i=0;i<=ticks;i++){ const y = y0 + (y1-y0)*i/ticks; el("line",{x1:L,x2:W-R,y1:sy(y),y2:sy(y),stroke:"#2a2e36","stroke-width":1});
+    const t = el("text",{x:L-8,y:sy(y)+4,fill:"#7d7a72","font-size":"11","text-anchor":"end"}); t.textContent = fmt(y); }
+  for (let i=0;i<=4;i++){ const x = x0 + (x1-x0)*i/4; const anchor = i===0 ? "start" : i===4 ? "end" : "middle";
+    const t = el("text",{x:sx(x),y:H-8,fill:"#7d7a72","font-size":"11","text-anchor":anchor}); t.textContent = "day "+fmt(x - xs[0]); }
+  el("line",{x1:L,x2:W-R,y1:sy(0),y2:sy(0),stroke:"#3a3f49","stroke-width":1,"stroke-dasharray":"4 4"});
+  const path = (arr, color, w) => { let d = ""; arr.forEach((y,i)=>{ d += (i?"L":"M")+sx(xs[i]).toFixed(1)+","+sy(y).toFixed(1)+" "; }); el("path",{d, fill:"none", stroke:color, "stroke-width":w, "vector-effect":"non-scaling-stroke"}); };
+  path(ps, "#5aa0ff", 2);
+  path(ys, "#f2a93b", 2.5);
+  ys.forEach((y,i)=> el("circle",{cx:sx(xs[i]),cy:sy(y),r:2.2,fill:"#f2a93b"}));
+}
+
+async function refresh() {
+  try {
+    const r = await fetch("/api/state"); const s = await r.json();
+    const st = await (await fetch("/api/status")).json();
+    document.getElementById("stamp").textContent = "updated " + new Date((s.generated_at||Date.now()/1000)*1000).toLocaleString();
+    const sum = s.summary;
+    if (sum) {
+      document.getElementById("lead").textContent = fmt(sum.lead_total_ns);
+      document.getElementById("sub").innerHTML = `Boston is <b>${fmt(sum.lead_total_ns)} ns</b> younger · that is <b>${fmt(sum.lead_light_metres,0)} m</b> of light · predicted <b>${fmt(sum.predicted_lead_ns)} ns</b> over ${sum.deployment_days} days`;
+      document.getElementById("rate").textContent = `${fmt(sum.measured_ns_day,2)} ± ${fmt(sum.measured_sigma,2)}`;
+      document.getElementById("pred").textContent = `${fmt(sum.predicted_ns_day,2)} ± ${fmt(sum.predicted_sigma,2)}`;
+      const a = sum.sigma_from_prediction; const ae = document.getElementById("agree");
+      ae.textContent = (a>0?"+":"")+fmt(a,1)+" σ"; ae.className = "v " + (Math.abs(a) < 2 ? "ok" : Math.abs(a) < 3 ? "warn" : "bad");
+      document.getElementById("det").textContent = fmt(sum.detection_sigma,0) + " σ";
+    } else {
+      document.getElementById("lead").textContent = "—";
+      document.getElementById("sub").innerHTML = s.ok ? "calibrating — the clock's own rate is being measured at the reference site" : ("no data: " + (s.error||""));
+    }
+    plot(s.lead || {});
+    const rows = document.getElementById("rows"); rows.innerHTML = "";
+    (s.deployments||[]).forEach(d => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${d.clock}</td><td>${d.site}</td><td>${d.start}</td><td>${d.end}</td><td>${d.days}</td>` +
+        `<td>${d.measured_ns_day==null?"—":fmt(d.measured_ns_day,2)+" ± "+fmt(d.measured_sigma,2)}</td>` +
+        `<td>${fmt(d.predicted_ns_day,2)} ± ${fmt(d.predicted_sigma,2)}</td>` +
+        `<td>${d.sigma_from_prediction==null?"—":(d.sigma_from_prediction>0?"+":"")+fmt(d.sigma_from_prediction,1)}</td><td>${(d.notes||[]).join("; ")}</td>`;
+      rows.appendChild(tr);
+    });
+    if (!(s.deployments||[]).length) rows.innerHTML = '<tr><td colspan="9" class="empty">no deployment yet</td></tr>';
+    const now = Date.now()/1000; const parts = [];
+    for (const k in st) { const v = st[k]; const age = now - v.t; parts.push(`<span class="${age<60?'ok':'bad'}">${k}</span> ${ago(age)} ago · ${fmt(v.last_ti_ns,1)} ns${(v.errors||[]).length?` · <span class="bad">${v.errors.length} err</span>`:""}`); }
+    document.getElementById("stations").innerHTML = parts.join("<br>") || "no daemon heartbeat";
+    const cm = s.commitments || {}; const last = Object.entries(cm).map(([k,v]) => v.length ? `${k} ${v[v.length-1][0]} ${v[v.length-1][1]}` : "").filter(Boolean);
+    document.getElementById("commit").textContent = last.join("\n") || "—";
+  } catch (e) { document.getElementById("stamp").textContent = "readout error: " + e; }
+}
+refresh(); setInterval(refresh, 30000);
+</script>
+</body>
+</html>

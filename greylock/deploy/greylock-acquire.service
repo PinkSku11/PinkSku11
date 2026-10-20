@@ -1,0 +1,19 @@
+[Unit]
+Description=greylock acquisition daemon (cesium vs GPS time, hash-chained ledger)
+After=network-online.target chrony.service
+Wants=network-online.target
+
+[Service]
+Type=notify
+NotifyAccess=main
+WatchdogSec=90
+User=pi
+WorkingDirectory=/home/pi/greylock
+ExecStart=/home/pi/greylock/.venv/bin/greylock acquire /home/pi/greylock/station.toml
+Restart=always
+RestartSec=5
+# the ledger resumes its hash chain on restart; nothing is lost but the restart gap
+Nice=-5
+
+[Install]
+WantedBy=multi-user.target
