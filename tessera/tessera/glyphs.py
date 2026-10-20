@@ -135,8 +135,14 @@ def load_overrides(path: str) -> int:
     if not os.path.exists(path):
         return 0
     n = 0
+
+    def is_comment(ln: str) -> bool:
+        # '#' also opens pixel rows ('#....'), so a line only counts as a comment
+        # when it cannot be a 5-wide row of the {#, .} alphabet
+        return ln.startswith("#") and not (len(ln) == 5 and set(ln) <= {"#", "."})
+
     with open(path) as f:
-        lines = [ln.rstrip("\n") for ln in f if not ln.startswith("#")]
+        lines = [ln.rstrip("\n") for ln in f if not is_comment(ln.rstrip("\n"))]
     i = 0
     while i < len(lines):
         if lines[i].strip() in ID:
