@@ -3,18 +3,21 @@
 Rung 1  counting      · ·· ··· beside their binary names
 Rung 2  arithmetic    + − × ÷ < > and = by example triples
 Rung 3  truth         ⊤ ⊥ ¬ ∧ ∨ ⊃ by statements the reader can check
-Rung 4  the machine   ∅ S, rewrite rules, worked reductions, a new definition
+Rung 4  the machine   ∅ S, rewrite rules, worked reductions, binary inside terms
+Rung 4b pictures      lists, points, row/col/rect/cat; every glyph's shape as a program;
+                      the ship drawn as a program
 Rung 5  anchors       hydrogen tick and wave (c = 1); the pulsar stamp
 Rung 6  payload       the Greylock ledger, or the ship
-Rung 7  words         agent / target / danger / good / bad by a short walk
+Rung 7  dialogue      Ha and Hb speak, ask, answer; good and bad are judgments the reader
+                      can check; knowing, wanting, help; then we and you, and what we want
 
 A Message is a list of glyph names.  `transcript()` prints it for humans.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Sequence
+from typing import List, Optional, Sequence
 
-from . import machine, stamp, units
+from . import glyphs, machine, stamp, units
 from .glyphs import NAMES, pretty
 
 
@@ -34,24 +37,22 @@ class Message:
             self.tokens.append(n)
 
     def line(self, *parts) -> None:
-        """A statement: glyph names, ints (binary numbers) and lists, ended with END."""
-        for p in parts:
-            if isinstance(p, int):
-                self.tokens += number(p)
-            elif isinstance(p, (list, tuple)):
-                self.line_parts(p)
-            else:
-                self.add(p)
+        """A statement: glyph names, ints (binary numbers) and nested lists, ended with END."""
+        self._parts(parts)
         self.add("END")
 
-    def line_parts(self, parts) -> None:
+    def _parts(self, parts) -> None:
+        prev_num = False
         for p in parts:
             if isinstance(p, int):
+                if prev_num:
+                    self.add("SEP")
                 self.tokens += number(p)
             elif isinstance(p, (list, tuple)):
-                self.line_parts(p)
+                self._parts(p)
             else:
                 self.add(p)
+            prev_num = isinstance(p, int)
 
     def dots(self, n: int) -> None:
         self.tokens += ["DOT"] * n
@@ -70,29 +71,26 @@ class Message:
         return out
 
     def transcript(self) -> str:
-        """Human-readable: numbers collapsed to binary, glyphs to their pretty forms."""
         out = []
         sec = {start: name for name, start in self.sections}
-        i = 0
         cur: List[str] = []
-        for t in self.tokens:
+        for i, t in enumerate(self.tokens):
             if i in sec:
                 out.append(f"\n— {sec[i]} —")
-            i += 1
             if t == "END":
-                out.append(_fmt(cur))
+                out.append(fmt(cur))
                 cur = []
             else:
                 cur.append(t)
         if cur:
-            out.append(_fmt(cur))
+            out.append(fmt(cur))
         return "\n".join(out)
 
     def __len__(self) -> int:
         return len(self.tokens)
 
 
-def _fmt(line: Sequence[str]) -> str:
+def fmt(line: Sequence[str]) -> str:
     parts: List[str] = []
     i = 0
     while i < len(line):
@@ -117,7 +115,6 @@ def _fmt(line: Sequence[str]) -> str:
 
 
 def number(n: int) -> List[str]:
-    """A non-negative integer as Z/O glyphs, most significant first."""
     if n < 0:
         raise ValueError("the message has no negative numbers; write a − b")
     return ["O" if ch == "1" else "Z" for ch in bin(n)[2:]]
@@ -127,8 +124,13 @@ def value(toks: Sequence[str]) -> int:
     return int("".join("1" if t == "O" else "0" for t in toks), 2)
 
 
+def T(term) -> List[str]:
+    """A machine term as glyph names."""
+    return machine.tokens(term)
+
+
 # ----------------------------------------------------------------------------------
-# the rungs
+# rungs 1–3
 # ----------------------------------------------------------------------------------
 
 def rung1_counting(m: Message) -> None:
@@ -140,7 +142,6 @@ def rung1_counting(m: Message) -> None:
 
 def rung2_arithmetic(m: Message) -> None:
     m.section("rung 2 · arithmetic")
-    # the first lines keep the dots so + and = are anchored to counting
     m.dots(1); m.add("PLUS"); m.dots(1); m.add("EQ"); m.dots(2); m.add("END")
     m.dots(2); m.add("PLUS"); m.dots(1); m.add("EQ"); m.dots(3); m.add("END")
     m.dots(2); m.add("PLUS"); m.dots(3); m.add("EQ"); m.dots(5); m.add("END")
@@ -183,32 +184,85 @@ def rung3_truth(m: Message) -> None:
     m.line("LP", "VA", "PLUS", "VB", "EQ", "VB", "PLUS", "VA", "RP", "TRUE")
 
 
+# ----------------------------------------------------------------------------------
+# rung 4: the machine, then pictures
+# ----------------------------------------------------------------------------------
+
+def _trace_line(m: Message, term, result_value: Optional[int] = None) -> None:
+    trace = machine.reduce(term)
+    parts: List = []
+    for i, t in enumerate(trace):
+        if i:
+            parts.append("ARROW")
+        parts.append(T(t))
+    m.line(parts)
+    if result_value is not None:
+        m.line(T(term), "EQ", result_value)
+
+
 def rung4_machine(m: Message) -> None:
     m.section("rung 4 · the machine")
     for n in range(0, 5):
-        m.line(machine.tokens(machine.peano(n)), "EQ", n)
-    for pat, rep in machine.RULES:
-        m.line("DEF", machine.tokens(pat), "ARROW", machine.tokens(rep))
-    # worked reductions, then the cross-check against rung 2
-    for a, b, head in [(1, 2, "ADD"), (2, 2, "MUL"), (3, None, "DOUBLE")]:
-        term = (head, machine.peano(a), machine.peano(b)) if b is not None else (head, machine.peano(a))
-        trace = machine.reduce(term)
-        parts: List = []
-        for i, t in enumerate(trace):
-            if i:
-                parts.append("ARROW")
-            parts.append(machine.tokens(t))
-        m.line(parts)
-        result = machine.unpeano(trace[-1])
-        m.line(machine.tokens(term), "EQ", result)
+        m.line(T(machine.peano(n)), "EQ", n)
+    for pat, rep in machine.ARITH_RULES:
+        m.line("DEF", T(pat), "ARROW", T(rep))
+    _trace_line(m, ("ADD", machine.peano(1), machine.peano(2)), 3)
+    _trace_line(m, ("MUL", machine.peano(2), machine.peano(2)), 4)
+    _trace_line(m, ("DOUBLE", machine.peano(3)), 6)
+    # binary numerals inside terms: the same machine, shorter to write
+    m.line(T(("S", 0)), "EQ", 1)
+    m.line(T(("S", 1)), "EQ", 2)
+    m.line(T(("S", 2)), "EQ", 3)
+    m.line(T(("S", 5)), "EQ", 6)
+    _trace_line(m, ("ADD", 2, 3), 5)
+    _trace_line(m, ("DOUBLE", 5), 10)
 
+
+def rung4b_pictures(m: Message, ship_program: Sequence[tuple]) -> None:
+    m.section("rung 4b · lists")
+    m.line(T(machine.cons_list([1])))
+    m.line(T(machine.cons_list([1, 2])))
+    m.line(T(machine.cons_list([1, 2, 3])))
+    for pat, rep in machine.DRAW_RULES[:2]:
+        m.line("DEF", T(pat), "ARROW", T(rep))
+    _trace_line(m, ("CAT", machine.cons_list([1]), machine.cons_list([2, 3])))
+    m.line(T(("CAT", machine.cons_list([1]), machine.cons_list([2, 3]))), "EQ", T(machine.cons_list([1, 2, 3])))
+
+    m.section("rung 4b · points and pictures")
+    for pat, rep in machine.DRAW_RULES[2:]:
+        m.line("DEF", T(pat), "ARROW", T(rep))
+    _trace_line(m, ("ROW", 0, 0, 3))
+    _trace_line(m, ("COL", 1, 0, 2))
+    m.line(T(("RECT", 0, 0, 2, 2)), "EQ", T(machine.normal_form(("RECT", 0, 0, 2, 2))))
+    # the alphabet describes itself
+    m.section("rung 4b · the shapes of the glyphs")
+    for name in NAMES:
+        if name == "END":
+            # the delimiter cannot be named inside a statement; its shape is "the shape of
+            # what ends this one": ( shape ) ⇒ …  followed, as always, by the glyph itself
+            m.line("DEF", "LP", "SHAPE", "RP", "ARROW", T(machine.program_term(glyphs.PROGRAMS[name])))
+        else:
+            m.line("DEF", "LP", "SHAPE", name, "RP", "ARROW", T(machine.program_term(glyphs.PROGRAMS[name])))
+    m.section("rung 4b · the ship, drawn")
+    m.line("DEF", "LP", "PICTURE", "SHIP", "RP", "ARROW", T(machine.program_term(ship_program)))
+
+
+SHIP_PICTURE: List[tuple] = (
+    [("COL", 0, 0, 31), ("COL", 14, 0, 31), ("ROW", 0, 0, 15), ("ROW", 30, 0, 15)]
+    + [("ROW", y, 1, 13) for y in (4, 8, 12, 16, 20, 24)]      # the decks: thrust is down, so floors stack
+    + [("RECT", 4, 26, 7, 4), ("ROW", 2, 6, 3)]                 # the engine block; the cabin at the prow
+)
+
+
+# ----------------------------------------------------------------------------------
+# rung 5 and the payloads
+# ----------------------------------------------------------------------------------
 
 def rung5_anchors(m: Message, pulsars: Optional[Sequence[stamp.Pulsar]] = None) -> None:
     m.section("rung 5 · anchors")
-    # the hydrogen page (drawn) carries the physics; here are its equations
-    m.line("H", "TICK", "EQ", 1, "TICK")                       # the period of the drawn transition is one tick
-    m.line("H", "WAVE", "EQ", 1, "WAVE")                       # its wavelength is one wave
-    m.line("LIGHT", "SPEED", "EQ", 1, "WAVE", "DIV", 1, "TICK")     # c = 1
+    m.line("H", "TICK", "EQ", 1, "TICK")
+    m.line("H", "WAVE", "EQ", 1, "WAVE")
+    m.line("LIGHT", "SPEED", "EQ", 1, "WAVE", "DIV", 1, "TICK")
     m.line(1, "WAVE", "EQ", "LIGHT", "SPEED", "TIMES", 1, "TICK")
     m.section("rung 5 · the stamp")
     for i, (p_milli, inv_pdot) in enumerate(stamp.encode(pulsars or stamp.CATALOGUE), start=1):
@@ -239,17 +293,83 @@ def payload_ship(m: Message) -> None:
     m.line("LP", "SHIP", "TIME_HOME", "GT", "SHIP", "TIME_SHIP", "RP", "TRUE")
 
 
-def rung7_words(m: Message) -> None:
-    """A walk on the number line: toward the target is good, onto the danger is bad."""
-    m.section("rung 7 · words")
+# ----------------------------------------------------------------------------------
+# rung 7: dialogue (after Lincos, chapter III)
+# ----------------------------------------------------------------------------------
+
+def rung7_dialogue(m: Message) -> None:
+    m.section("rung 7 · speaking")
+    m.line("HA", "SAY", "HB", "LP", 1, "PLUS", 1, "EQ", 2, "RP")
+    m.line("HB", "SAY", "HA", "LP", 2, "PLUS", 1, "EQ", 3, "RP")
+    m.line("HA", "SAY", "HB", "LP", 2, "TIMES", 3, "EQ", 6, "RP")
+    m.line("HB", "SAY", "HA", "LP", 6, "DIV", 2, "EQ", 3, "RP")
+
+    m.section("rung 7 · asking, answering, judging")
+    # (question, answer, judgment) — every GOOD answer is true, every BAD one false,
+    # so a reader can recover GOOD and BAD by checking
+    exchanges = [
+        ((2, "PLUS", "VA", "EQ", 5), 3, True),
+        ((2, "TIMES", "VA", "EQ", 6), 4, False),
+        ((2, "TIMES", "VA", "EQ", 6), 3, True),
+        (("VA", "TIMES", "VA", "EQ", 9), 3, True),
+        ((10, "MINUS", "VA", "EQ", 4), 5, False),
+        ((10, "MINUS", "VA", "EQ", 4), 6, True),
+        (("VA", "PLUS", 5, "EQ", 8), 3, True),
+        ((7, "LT", "VA"), 9, True),
+        ((7, "LT", "VA"), 2, False),
+    ]
+    for i, (q, ans, good) in enumerate(exchanges):
+        asker, other = ("HA", "HB") if i % 3 != 2 else ("HB", "HA")
+        m.line(asker, "SAY", other, "ASK", "VA", "LP", *q, "RP")
+        m.line(other, "SAY", asker, "LP", "VA", "EQ", ans, "RP")
+        m.line(asker, "SAY", other, "GOOD" if good else "BAD")
+
+    m.section("rung 7 · knowing")
+    m.line("HB", "NOT", "KNOW", "LP", 3, "TIMES", "VA", "EQ", 12, "RP")
+    m.line("HB", "SAY", "HA", "ASK", "VA", "LP", 3, "TIMES", "VA", "EQ", 12, "RP")
+    m.line("HA", "SAY", "HB", "LP", "VA", "EQ", 4, "RP")
+    m.line("HB", "SAY", "HA", "GOOD")
+    m.line("HB", "KNOW", "LP", 3, "TIMES", 4, "EQ", 12, "RP")
+    m.line("HA", "KNOW", "LP", 3, "TIMES", 4, "EQ", 12, "RP")
+    m.line("LP", "LP", "HA", "KNOW", "VB", "RP", "AND", "LP", "HB", "SAY", "HA", "ASK", "VB", "RP", "RP", "IMP", "LP", "HA", "SAY", "HB", "VB", "RP")
+
+    m.section("rung 7 · wanting")
+    m.line("HB", "WANT", "LP", "HB", "KNOW", "LP", 5, "TIMES", "VA", "EQ", 35, "RP", "RP")
+    m.line("HB", "SAY", "HA", "ASK", "VA", "LP", 5, "TIMES", "VA", "EQ", 35, "RP")
+    m.line("HA", "SAY", "HB", "LP", "VA", "EQ", 7, "RP")
+    m.line("HB", "SAY", "HA", "GOOD")
+    m.line("HB", "KNOW", "LP", 5, "TIMES", 7, "EQ", 35, "RP")
+    m.line("LP", "LP", "HB", "WANT", "LP", "HB", "KNOW", "VB", "RP", "RP", "AND", "LP", "HA", "KNOW", "VB", "RP", "RP",
+           "IMP", "LP", "HB", "SAY", "HA", "ASK", "VB", "RP")
+
+    m.section("rung 7 · the walk: wanting, danger, help")
     m.line("TARGET", "EQ", 7)
     m.line("DANGER", "EQ", 2)
+    m.line("AGENT", "WANT", "LP", "AGENT", "EQ", "TARGET", "RP")
+    m.line("AGENT", "NOT", "WANT", "LP", "AGENT", "EQ", "DANGER", "RP")
     for pos, nxt, word in [(4, 5, "GOOD"), (5, 6, "GOOD"), (6, 7, "GOOD"), (4, 3, "BAD"), (3, 2, "BAD")]:
         m.line("AGENT", "EQ", pos, "STEP", "AGENT", "EQ", nxt, word)
     m.line("LP", "AGENT", "EQ", "TARGET", "RP", "GOOD")
     m.line("LP", "AGENT", "EQ", "DANGER", "RP", "BAD")
-    m.line("LP", "LP", "AGENT", "GT", "VA", "RP", "AND", "LP", "TARGET", "GT", "AGENT", "RP", "AND",
-           "LP", "AGENT", "STEP", "AGENT", "PLUS", 1, "RP", "RP", "GOOD")
+    m.line("LP", "LP", "AGENT", "WANT", "LP", "AGENT", "EQ", "VA", "RP", "RP", "AND", "LP", "AGENT", "LT", "VA", "RP", "RP",
+           "IMP", "LP", "AGENT", "STEP", "AGENT", "PLUS", 1, "RP")
+    # help: Hb wants what it cannot do alone; Ha does it
+    m.line("HB", "EQ", 3)
+    m.line("HB", "WANT", "LP", "HB", "EQ", 7, "RP")
+    m.line("HB", "SAY", "HA", "HELP", "LP", "HB", "EQ", 7, "RP")
+    m.line("HA", "STEP", "HB", "EQ", 7)
+    m.line("HB", "SAY", "HA", "GOOD")
+    m.line("LP", "LP", "VA", "SAY", "VB", "HELP", "VC", "RP", "AND", "LP", "VB", "STEP", "VC", "RP", "RP", "IMP", "LP", "VA", "SAY", "VB", "GOOD", "RP")
+
+    m.section("rung 7 · we and you")
+    m.line("WE", "SAY", "YOU", "LP", 1, "PLUS", 1, "EQ", 2, "RP")
+    m.line("WE", "SAY", "YOU", "LP", "CLOCK_A", "GT", "CLOCK_B", "RP")
+    m.line("WE", "WANT", "LP", "YOU", "KNOW", "LP", "CLOCK_A", "GT", "CLOCK_B", "RP", "RP")
+    m.line("WE", "NOT", "KNOW", "LP", "PULSAR", 1, "PERIOD", "EQ", "VA", "RP")
+    m.line("WE", "WANT", "LP", "WE", "KNOW", "LP", "PULSAR", 1, "PERIOD", "EQ", "VA", "RP", "RP")
+    m.line("WE", "SAY", "YOU", "ASK", "VA", "LP", "PULSAR", 1, "PERIOD", "EQ", "VA", "RP")
+    m.line("WE", "WANT", "LP", "YOU", "SAY", "WE", "LP", "PULSAR", 1, "PERIOD", "EQ", "VA", "RP", "RP")
+    m.line("WE", "WANT", "LP", "YOU", "GOOD", "RP")
 
 
 def build(payload: str = "greylock", pulsars: Optional[Sequence[stamp.Pulsar]] = None) -> Message:
@@ -258,6 +378,7 @@ def build(payload: str = "greylock", pulsars: Optional[Sequence[stamp.Pulsar]] =
     rung2_arithmetic(m)
     rung3_truth(m)
     rung4_machine(m)
+    rung4b_pictures(m, SHIP_PICTURE)
     rung5_anchors(m, pulsars)
     if payload == "greylock":
         payload_greylock(m)
@@ -268,5 +389,5 @@ def build(payload: str = "greylock", pulsars: Optional[Sequence[stamp.Pulsar]] =
         payload_ship(m)
     else:
         raise ValueError(payload)
-    rung7_words(m)
+    rung7_dialogue(m)
     return m

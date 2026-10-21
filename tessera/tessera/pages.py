@@ -142,6 +142,49 @@ def hydrogen_page() -> Bitmap:
     return p
 
 
+def draw_points(page: Bitmap, pts, x0: int, y0: int, w: int, h: int, scale: int = 3) -> None:
+    """A picture program's points, enlarged, inside a thin frame: for the reader with eyes."""
+    for y in range(-1, h * scale + 1):
+        for x in range(-1, w * scale + 1):
+            on_frame = x in (-1, w * scale) or y in (-1, h * scale)
+            inside = (x // scale, y // scale) in pts if 0 <= x < w * scale and 0 <= y < h * scale else False
+            if (on_frame or inside) and 0 <= x0 + x < W - 1 and 0 <= y0 + y < H - 1:
+                page[y0 + y][x0 + x] = 1
+
+
+def glyph_line(page: Bitmap, names, x: int, y: int) -> None:
+    for i, n in enumerate(names):
+        glyph_at(page, n, x + i * CELL_W, y)
+
+
+def pictures_page(ship_program) -> Bitmap:
+    """Three small programs and the ship, each beside what it draws."""
+    from . import machine
+    from .glyphs import PROGRAMS
+    p = blank()
+    examples = [
+        ("DOT", ("LP", "SHAPE", "DOT", "RP")),
+        ("O", ("LP", "SHAPE", "O", "RP")),
+        ("END", ("LP", "SHAPE", "END", "RP")),
+        ("EQ", ("LP", "SHAPE", "EQ", "RP")),
+    ]
+    for i, (name, label) in enumerate(examples):
+        x0 = 8 + i * 50
+        pts = machine.points(machine.program_term(PROGRAMS[name]))
+        glyph_line(p, label, x0, 6)
+        draw_points(p, pts, x0 + 8, 18, 5, 7, scale=3)
+    rect = ("RECT", 1, 1, 2, 3)
+    glyph_line(p, machine.tokens(rect), 8, 50)
+    draw_points(p, machine.points(rect), 16, 62, 5, 7, scale=3)
+    ship_pts = machine.points(machine.program_term(ship_program))
+    glyph_line(p, ("LP", "PICTURE", "SHIP", "RP"), 120, 50)
+    draw_points(p, ship_pts, 130, 62, 15, 31, scale=3)
+    # the same ship at scale 1, as the glyph grid would hold it
+    draw_points(p, ship_pts, 100, 62, 15, 31, scale=1)
+    add_parity(p)
+    return p
+
+
 def glyph_sheet() -> Bitmap:
     """Every glyph with its id in binary beside it — the key, for us."""
     p = blank()

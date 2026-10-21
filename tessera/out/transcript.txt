@@ -108,6 +108,112 @@
 ( mul ( S ( S ∅ ) ) ( S ( S ∅ ) ) ) = 100
 ( double ( S ( S ( S ∅ ) ) ) ) ⇒ ( add ( S ( S ( S ∅ ) ) ) ( S ( S ( S ∅ ) ) ) ) ⇒ ( S ( add ( S ( S ( S ∅ ) ) ) ( S ( S ∅ ) ) ) ) ⇒ ( S ( S ( add ( S ( S ( S ∅ ) ) ) ( S ∅ ) ) ) ) ⇒ ( S ( S ( S ( add ( S ( S ( S ∅ ) ) ) ∅ ) ) ) ) ⇒ ( S ( S ( S ( S ( S ( S ∅ ) ) ) ) ) )
 ( double ( S ( S ( S ∅ ) ) ) ) = 110
+( S 0 ) = 1
+( S 1 ) = 10
+( S 10 ) = 11
+( S 101 ) = 110
+( add 10 , 11 ) ⇒ ( S ( add 10 , 10 ) ) ⇒ ( S ( S ( add 10 , 1 ) ) ) ⇒ ( S ( S ( S ( add 10 , 0 ) ) ) ) ⇒ ( S ( S ( S 10 ) ) ) ⇒ ( S ( S 11 ) ) ⇒ ( S 100 ) ⇒ 101
+( add 10 , 11 ) = 101
+( double 101 ) ⇒ ( add 101 , 101 ) ⇒ ( S ( add 101 , 100 ) ) ⇒ ( S ( S ( add 101 , 11 ) ) ) ⇒ ( S ( S ( S ( add 101 , 10 ) ) ) ) ⇒ ( S ( S ( S ( S ( add 101 , 1 ) ) ) ) ) ⇒ ( S ( S ( S ( S ( S ( add 101 , 0 ) ) ) ) ) ) ⇒ ( S ( S ( S ( S ( S 101 ) ) ) ) ) ⇒ ( S ( S ( S ( S 110 ) ) ) ) ⇒ ( S ( S ( S 111 ) ) ) ⇒ ( S ( S 1000 ) ) ⇒ ( S 1001 ) ⇒ 1010
+( double 101 ) = 1010
+
+— rung 4b · lists —
+( cons 1 ∅ )
+( cons 1 ( cons 10 ∅ ) )
+( cons 1 ( cons 10 ( cons 11 ∅ ) ) )
+≝ ( cat ∅ b ) ⇒ b
+≝ ( cat ( cons a c ) b ) ⇒ ( cons a ( cat c b ) )
+( cat ( cons 1 ∅ ) ( cons 10 ( cons 11 ∅ ) ) ) ⇒ ( cons 1 ( cat ∅ ( cons 10 ( cons 11 ∅ ) ) ) ) ⇒ ( cons 1 ( cons 10 ( cons 11 ∅ ) ) )
+( cat ( cons 1 ∅ ) ( cons 10 ( cons 11 ∅ ) ) ) = ( cons 1 ( cons 10 ( cons 11 ∅ ) ) )
+
+— rung 4b · points and pictures —
+≝ ( row a b ∅ ) ⇒ ∅
+≝ ( row a b ( S c ) ) ⇒ ( cons ( pt b a ) ( row a ( S b ) c ) )
+≝ ( col a b ∅ ) ⇒ ∅
+≝ ( col a b ( S c ) ) ⇒ ( cons ( pt a b ) ( col a ( S b ) c ) )
+≝ ( rect a b c ∅ ) ⇒ ∅
+≝ ( rect a b c ( S d ) ) ⇒ ( cat ( row b a c ) ( rect a ( S b ) c d ) )
+( row 0 , 0 , 11 ) ⇒ ( cons ( pt 0 , 0 ) ( row 0 ( S 0 ) 10 ) ) ⇒ ( cons ( pt 0 , 0 ) ( cons ( pt ( S 0 ) 0 ) ( row 0 ( S ( S 0 ) ) 1 ) ) ) ⇒ ( cons ( pt 0 , 0 ) ( cons ( pt 1 , 0 ) ( row 0 ( S ( S 0 ) ) 1 ) ) ) ⇒ ( cons ( pt 0 , 0 ) ( cons ( pt 1 , 0 ) ( cons ( pt ( S ( S 0 ) ) 0 ) ( row 0 ( S ( S ( S 0 ) ) ) 0 ) ) ) ) ⇒ ( cons ( pt 0 , 0 ) ( cons ( pt 1 , 0 ) ( cons ( pt ( S 1 ) 0 ) ( row 0 ( S ( S ( S 0 ) ) ) 0 ) ) ) ) ⇒ ( cons ( pt 0 , 0 ) ( cons ( pt 1 , 0 ) ( cons ( pt 10 , 0 ) ( row 0 ( S ( S ( S 0 ) ) ) 0 ) ) ) ) ⇒ ( cons ( pt 0 , 0 ) ( cons ( pt 1 , 0 ) ( cons ( pt 10 , 0 ) ∅ ) ) )
+( col 1 , 0 , 10 ) ⇒ ( cons ( pt 1 , 0 ) ( col 1 ( S 0 ) 1 ) ) ⇒ ( cons ( pt 1 , 0 ) ( cons ( pt 1 ( S 0 ) ) ( col 1 ( S ( S 0 ) ) 0 ) ) ) ⇒ ( cons ( pt 1 , 0 ) ( cons ( pt 1 , 1 ) ( col 1 ( S ( S 0 ) ) 0 ) ) ) ⇒ ( cons ( pt 1 , 0 ) ( cons ( pt 1 , 1 ) ∅ ) )
+( rect 0 , 0 , 10 , 10 ) = ( cons ( pt 0 , 0 ) ( cons ( pt 1 , 0 ) ( cons ( pt 0 , 1 ) ( cons ( pt 1 , 1 ) ∅ ) ) ) )
+
+— rung 4b · the shapes of the glyphs —
+≝ ( shape · ) ⇒ ( cons ( pt 10 , 11 ) ∅ )
+≝ ( shape 0 ) ⇒ ( cat ( row 0 , 0 , 101 ) ( cat ( row 110 , 0 , 101 ) ( cat ( col 0 , 1 , 101 ) ( col 100 , 1 , 101 ) ) ) )
+≝ ( shape 1 ) ⇒ ( col 10 , 0 , 111 )
+≝ ( shape ) ⇒ ( cat ( col 0 , 0 , 111 ) ( row 110 , 1 , 100 ) )
+≝ ( shape = ) ⇒ ( cat ( row 10 , 0 , 101 ) ( row 100 , 0 , 101 ) )
+≝ ( shape + ) ⇒ ( cat ( row 11 , 0 , 101 ) ( cat ( col 10 , 1 , 10 ) ( col 10 , 100 , 10 ) ) )
+≝ ( shape − ) ⇒ ( cat ( row 10 , 0 , 101 ) ( row 11 , 0 , 101 ) )
+≝ ( shape × ) ⇒ ( cat ( cons ( pt 0 , 1 ) ∅ ) ( cat ( cons ( pt 100 , 1 ) ∅ ) ( cat ( cons ( pt 1 , 10 ) ∅ ) ( cat ( cons ( pt 11 , 10 ) ∅ ) ( cat ( cons ( pt 10 , 11 ) ∅ ) ( cat ( cons ( pt 1 , 100 ) ∅ ) ( cat ( cons ( pt 11 , 100 ) ∅ ) ( cat ( cons ( pt 0 , 101 ) ∅ ) ( cons ( pt 100 , 101 ) ∅ ) ) ) ) ) ) ) ) )
+≝ ( shape ÷ ) ⇒ ( cat ( row 11 , 0 , 101 ) ( cat ( cons ( pt 1 , 1 ) ∅ ) ( cat ( cons ( pt 11 , 1 ) ∅ ) ( cat ( cons ( pt 1 , 101 ) ∅ ) ( cons ( pt 11 , 101 ) ∅ ) ) ) ) )
+≝ ( shape < ) ⇒ ( cat ( cons ( pt 11 , 1 ) ∅ ) ( cat ( cons ( pt 10 , 10 ) ∅ ) ( cat ( cons ( pt 1 , 11 ) ∅ ) ( cat ( cons ( pt 10 , 100 ) ∅ ) ( cons ( pt 11 , 101 ) ∅ ) ) ) ) )
+≝ ( shape > ) ⇒ ( cat ( cons ( pt 1 , 1 ) ∅ ) ( cat ( cons ( pt 10 , 10 ) ∅ ) ( cat ( cons ( pt 11 , 11 ) ∅ ) ( cat ( cons ( pt 10 , 100 ) ∅ ) ( cons ( pt 1 , 101 ) ∅ ) ) ) ) )
+≝ ( shape ⊤ ) ⇒ ( cat ( cons ( pt 10 , 11 ) ∅ ) ( cat ( row 100 , 1 , 11 ) ( row 101 , 0 , 101 ) ) )
+≝ ( shape ⊥ ) ⇒ ( cat ( row 1 , 0 , 101 ) ( cat ( row 10 , 1 , 11 ) ( cons ( pt 10 , 11 ) ∅ ) ) )
+≝ ( shape ¬ ) ⇒ ( cat ( row 10 , 0 , 101 ) ( col 100 , 11 , 11 ) )
+≝ ( shape ∧ ) ⇒ ( cat ( cons ( pt 10 , 10 ) ∅ ) ( cat ( cons ( pt 1 , 11 ) ∅ ) ( cat ( cons ( pt 11 , 11 ) ∅ ) ( cat ( cons ( pt 0 , 100 ) ∅ ) ( cat ( cons ( pt 100 , 100 ) ∅ ) ( cat ( cons ( pt 0 , 101 ) ∅ ) ( cons ( pt 100 , 101 ) ∅ ) ) ) ) ) ) )
+≝ ( shape ∨ ) ⇒ ( cat ( cons ( pt 0 , 1 ) ∅ ) ( cat ( cons ( pt 100 , 1 ) ∅ ) ( cat ( cons ( pt 0 , 10 ) ∅ ) ( cat ( cons ( pt 100 , 10 ) ∅ ) ( cat ( cons ( pt 1 , 11 ) ∅ ) ( cat ( cons ( pt 11 , 11 ) ∅ ) ( cons ( pt 10 , 100 ) ∅ ) ) ) ) ) ) )
+≝ ( shape ⊃ ) ⇒ ( cat ( row 1 , 0 , 100 ) ( cat ( col 100 , 10 , 11 ) ( row 101 , 0 , 100 ) ) )
+≝ ( shape ( ) ⇒ ( cat ( cons ( pt 11 , 0 ) ∅ ) ( cat ( cons ( pt 10 , 1 ) ∅ ) ( cat ( col 1 , 10 , 11 ) ( cat ( cons ( pt 10 , 101 ) ∅ ) ( cons ( pt 11 , 110 ) ∅ ) ) ) ) )
+≝ ( shape ) ) ⇒ ( cat ( cons ( pt 1 , 0 ) ∅ ) ( cat ( cons ( pt 10 , 1 ) ∅ ) ( cat ( col 11 , 10 , 11 ) ( cat ( cons ( pt 10 , 101 ) ∅ ) ( cons ( pt 1 , 110 ) ∅ ) ) ) ) )
+≝ ( shape ⇒ ) ⇒ ( cat ( row 100 , 0 , 101 ) ( cat ( cons ( pt 11 , 11 ) ∅ ) ( cons ( pt 11 , 101 ) ∅ ) ) )
+≝ ( shape ≝ ) ⇒ ( cat ( row 1 , 0 , 101 ) ( cat ( row 11 , 0 , 101 ) ( row 101 , 0 , 101 ) ) )
+≝ ( shape a ) ⇒ ( rect 0 , 101 , 11 , 10 )
+≝ ( shape b ) ⇒ ( rect 10 , 101 , 11 , 10 )
+≝ ( shape c ) ⇒ ( rect 0 , 0 , 11 , 10 )
+≝ ( shape d ) ⇒ ( rect 10 , 0 , 11 , 10 )
+≝ ( shape ∅ ) ⇒ ( cat ( row 10 , 1 , 11 ) ( cat ( row 100 , 1 , 11 ) ( cat ( cons ( pt 1 , 11 ) ∅ ) ( cons ( pt 11 , 11 ) ∅ ) ) ) )
+≝ ( shape S ) ⇒ ( cat ( cons ( pt 10 , 0 ) ∅ ) ( cat ( cons ( pt 1 , 1 ) ∅ ) ( cat ( cons ( pt 11 , 1 ) ∅ ) ( cat ( cons ( pt 0 , 10 ) ∅ ) ( cons ( pt 100 , 10 ) ∅ ) ) ) ) )
+≝ ( shape add ) ⇒ ( cat ( row 0 , 0 , 101 ) ( cat ( col 10 , 10 , 101 ) ( row 100 , 0 , 101 ) ) )
+≝ ( shape mul ) ⇒ ( cat ( row 0 , 0 , 101 ) ( cat ( cons ( pt 1 , 10 ) ∅ ) ( cat ( cons ( pt 11 , 10 ) ∅ ) ( cat ( cons ( pt 10 , 11 ) ∅ ) ( cat ( cons ( pt 1 , 100 ) ∅ ) ( cons ( pt 11 , 100 ) ∅ ) ) ) ) ) )
+≝ ( shape double ) ⇒ ( cat ( row 0 , 0 , 101 ) ( cat ( row 100 , 11 , 10 ) ( cat ( col 0 , 10 , 11 ) ( rect 10 , 10 , 10 , 10 ) ) ) )
+≝ ( shape tick ) ⇒ ( cat ( col 0 , 0 , 111 ) ( cat ( col 100 , 0 , 111 ) ( col 10 , 0 , 111 ) ) )
+≝ ( shape wave ) ⇒ ( cat ( col 0 , 0 , 111 ) ( cat ( col 100 , 0 , 111 ) ( cat ( cons ( pt 1 , 1 ) ∅ ) ( cat ( cons ( pt 10 , 10 ) ∅ ) ( cat ( cons ( pt 11 , 11 ) ∅ ) ( cat ( cons ( pt 10 , 100 ) ∅ ) ( cons ( pt 1 , 101 ) ∅ ) ) ) ) ) ) )
+≝ ( shape H ) ⇒ ( cat ( col 0 , 0 , 111 ) ( cat ( col 100 , 0 , 111 ) ( row 11 , 1 , 11 ) ) )
+≝ ( shape light ) ⇒ ( cat ( col 0 , 0 , 111 ) ( cat ( col 100 , 0 , 111 ) ( cat ( cons ( pt 10 , 0 ) ∅ ) ( cat ( cons ( pt 10 , 110 ) ∅ ) ( cat ( cons ( pt 1 , 10 ) ∅ ) ( cat ( cons ( pt 11 , 10 ) ∅ ) ( cat ( cons ( pt 1 , 100 ) ∅ ) ( cons ( pt 11 , 100 ) ∅ ) ) ) ) ) ) ) )
+≝ ( shape clockA ) ⇒ ( cat ( col 0 , 0 , 111 ) ( cat ( col 100 , 0 , 111 ) ( rect 1 , 1 , 11 , 10 ) ) )
+≝ ( shape clockB ) ⇒ ( cat ( col 0 , 0 , 111 ) ( cat ( col 100 , 0 , 111 ) ( rect 1 , 100 , 11 , 10 ) ) )
+≝ ( shape height ) ⇒ ( cat ( col 0 , 0 , 111 ) ( cat ( col 100 , 0 , 111 ) ( cat ( col 11 , 1 , 100 ) ( row 110 , 1 , 11 ) ) ) )
+≝ ( shape g ) ⇒ ( cat ( col 0 , 0 , 111 ) ( cat ( col 100 , 0 , 111 ) ( cat ( cons ( pt 10 , 110 ) ∅ ) ( cat ( rect 1 , 1 , 10 , 10 ) ( col 11 , 11 , 11 ) ) ) ) )
+≝ ( shape rate ) ⇒ ( cat ( col 0 , 0 , 111 ) ( cat ( col 100 , 0 , 111 ) ( cat ( rect 10 , 100 , 10 , 10 ) ( cat ( col 1 , 0 , 11 ) ( row 0 , 1 , 11 ) ) ) ) )
+≝ ( shape per ) ⇒ ( cat ( col 0 , 0 , 111 ) ( cat ( col 100 , 0 , 111 ) ( cat ( row 11 , 1 , 11 ) ( cat ( col 11 , 101 , 10 ) ( rect 1 , 101 , 10 , 10 ) ) ) ) )
+≝ ( shape pulsar ) ⇒ ( cat ( col 0 , 0 , 111 ) ( cat ( col 100 , 0 , 111 ) ( cat ( rect 1 , 0 , 10 , 10 ) ( cat ( col 10 , 11 , 11 ) ( col 11 , 1 , 100 ) ) ) ) )
+≝ ( shape period ) ⇒ ( cat ( col 0 , 0 , 111 ) ( cat ( col 100 , 0 , 111 ) ( cat ( col 11 , 0 , 10 ) ( row 100 , 10 , 10 ) ) ) )
+≝ ( shape drift ) ⇒ ( cat ( col 0 , 0 , 111 ) ( cat ( col 100 , 0 , 111 ) ( cat ( rect 1 , 101 , 10 , 10 ) ( cat ( col 11 , 1 , 10 ) ( cons ( pt 1 , 10 ) ∅ ) ) ) ) )
+≝ ( shape now ) ⇒ ( cat ( col 0 , 0 , 111 ) ( cat ( col 100 , 0 , 111 ) ( cat ( col 11 , 11 , 100 ) ( rect 1 , 0 , 10 , 10 ) ) ) )
+≝ ( shape ship ) ⇒ ( cat ( col 0 , 0 , 111 ) ( cat ( col 100 , 0 , 111 ) ( cat ( cons ( pt 10 , 0 ) ∅ ) ( cat ( row 10 , 1 , 11 ) ( row 101 , 1 , 11 ) ) ) ) )
+≝ ( shape distance ) ⇒ ( cat ( col 0 , 0 , 111 ) ( cat ( col 100 , 0 , 111 ) ( cat ( rect 1 , 10 , 10 , 10 ) ( cat ( col 1 , 10 , 100 ) ( rect 1 , 11 , 10 , 10 ) ) ) ) )
+≝ ( shape shiptime ) ⇒ ( cat ( col 0 , 0 , 111 ) ( cat ( col 100 , 0 , 111 ) ( cat ( row 11 , 1 , 10 ) ( cat ( rect 10 , 100 , 10 , 10 ) ( row 10 , 1 , 11 ) ) ) ) )
+≝ ( shape hometime ) ⇒ ( cat ( col 0 , 0 , 111 ) ( cat ( col 100 , 0 , 111 ) ( cat ( rect 10 , 0 , 10 , 10 ) ( cat ( cons ( pt 1 , 101 ) ∅ ) ( rect 1 , 0 , 10 , 10 ) ) ) ) )
+≝ ( shape speed ) ⇒ ( cat ( col 0 , 0 , 111 ) ( cat ( col 100 , 0 , 111 ) ( cat ( cons ( pt 11 , 1 ) ∅ ) ( cat ( row 110 , 1 , 11 ) ( rect 1 , 11 , 10 , 10 ) ) ) ) )
+≝ ( shape agent ) ⇒ ( cat ( cons ( pt 0 , 0 ) ∅ ) ( cat ( cons ( pt 100 , 0 ) ∅ ) ( cat ( cons ( pt 0 , 110 ) ∅ ) ( cat ( cons ( pt 100 , 110 ) ∅ ) ( cat ( cons ( pt 100 , 101 ) ∅ ) ( cat ( cons ( pt 11 , 1 ) ∅ ) ( col 0 , 10 , 11 ) ) ) ) ) ) )
+≝ ( shape target ) ⇒ ( cat ( cons ( pt 0 , 0 ) ∅ ) ( cat ( cons ( pt 100 , 0 ) ∅ ) ( cat ( cons ( pt 0 , 110 ) ∅ ) ( cat ( cons ( pt 100 , 110 ) ∅ ) ( cat ( cons ( pt 10 , 100 ) ∅ ) ( cat ( row 11 , 1 , 11 ) ( rect 11 , 100 , 10 , 10 ) ) ) ) ) ) )
+≝ ( shape danger ) ⇒ ( cat ( cons ( pt 0 , 0 ) ∅ ) ( cat ( cons ( pt 100 , 0 ) ∅ ) ( cat ( cons ( pt 0 , 110 ) ∅ ) ( cat ( cons ( pt 100 , 110 ) ∅ ) ( cat ( col 0 , 1 , 11 ) ( cat ( rect 0 , 11 , 10 , 10 ) ( row 100 , 11 , 10 ) ) ) ) ) ) )
+≝ ( shape step ) ⇒ ( cat ( cons ( pt 0 , 0 ) ∅ ) ( cat ( cons ( pt 100 , 0 ) ∅ ) ( cat ( cons ( pt 0 , 110 ) ∅ ) ( cat ( cons ( pt 100 , 110 ) ∅ ) ( cat ( cons ( pt 10 , 1 ) ∅ ) ( cat ( cons ( pt 10 , 10 ) ∅ ) ( col 1 , 100 , 10 ) ) ) ) ) ) )
+≝ ( shape good ) ⇒ ( cat ( cons ( pt 0 , 0 ) ∅ ) ( cat ( cons ( pt 100 , 0 ) ∅ ) ( cat ( cons ( pt 0 , 110 ) ∅ ) ( cat ( cons ( pt 100 , 110 ) ∅ ) ( cat ( cons ( pt 10 , 1 ) ∅ ) ( cat ( row 10 , 1 , 11 ) ( row 11 , 0 , 101 ) ) ) ) ) ) )
+≝ ( shape bad ) ⇒ ( cat ( cons ( pt 0 , 0 ) ∅ ) ( cat ( cons ( pt 100 , 0 ) ∅ ) ( cat ( cons ( pt 0 , 110 ) ∅ ) ( cat ( cons ( pt 100 , 110 ) ∅ ) ( cat ( row 11 , 0 , 101 ) ( cat ( row 100 , 1 , 11 ) ( cons ( pt 10 , 101 ) ∅ ) ) ) ) ) ) )
+≝ ( shape cons ) ⇒ ( cat ( row 0 , 0 , 101 ) ( cat ( cons ( pt 100 , 11 ) ∅ ) ( cat ( rect 0 , 10 , 10 , 10 ) ( col 100 , 11 , 100 ) ) ) )
+≝ ( shape pt ) ⇒ ( cat ( row 0 , 0 , 101 ) ( cons ( pt 10 , 100 ) ∅ ) )
+≝ ( shape row ) ⇒ ( cat ( row 0 , 0 , 101 ) ( cat ( row 11 , 0 , 101 ) ( row 100 , 0 , 101 ) ) )
+≝ ( shape col ) ⇒ ( cat ( row 0 , 0 , 101 ) ( cat ( col 1 , 10 , 101 ) ( col 11 , 10 , 101 ) ) )
+≝ ( shape rect ) ⇒ ( cat ( row 0 , 0 , 101 ) ( cat ( rect 1 , 10 , 11 , 10 ) ( rect 1 , 101 , 11 , 10 ) ) )
+≝ ( shape cat ) ⇒ ( cat ( row 0 , 0 , 101 ) ( cat ( row 101 , 0 , 11 ) ( cat ( cons ( pt 100 , 110 ) ∅ ) ( col 100 , 101 , 10 ) ) ) )
+≝ ( shape shape ) ⇒ ( cat ( row 0 , 0 , 101 ) ( cat ( cons ( pt 10 , 110 ) ∅ ) ( cat ( rect 10 , 11 , 10 , 10 ) ( row 10 , 0 , 10 ) ) ) )
+≝ ( shape picture ) ⇒ ( cat ( row 0 , 0 , 101 ) ( cat ( rect 11 , 101 , 10 , 10 ) ( cat ( rect 0 , 101 , 10 , 10 ) ( row 11 , 10 , 10 ) ) ) )
+≝ ( shape Ha ) ⇒ ( cat ( cons ( pt 0 , 0 ) ∅ ) ( cat ( cons ( pt 100 , 0 ) ∅ ) ( cat ( cons ( pt 0 , 110 ) ∅ ) ( cat ( cons ( pt 100 , 110 ) ∅ ) ( rect 1 , 1 , 11 , 10 ) ) ) ) )
+≝ ( shape Hb ) ⇒ ( cat ( cons ( pt 0 , 0 ) ∅ ) ( cat ( cons ( pt 100 , 0 ) ∅ ) ( cat ( cons ( pt 0 , 110 ) ∅ ) ( cat ( cons ( pt 100 , 110 ) ∅ ) ( rect 1 , 100 , 11 , 10 ) ) ) ) )
+≝ ( shape say ) ⇒ ( cat ( cons ( pt 0 , 0 ) ∅ ) ( cat ( cons ( pt 100 , 0 ) ∅ ) ( cat ( cons ( pt 0 , 110 ) ∅ ) ( cat ( cons ( pt 100 , 110 ) ∅ ) ( cat ( cons ( pt 100 , 10 ) ∅ ) ( cat ( row 101 , 0 , 10 ) ( col 0 , 100 , 10 ) ) ) ) ) ) )
+≝ ( shape ? ) ⇒ ( cat ( cons ( pt 0 , 0 ) ∅ ) ( cat ( cons ( pt 100 , 0 ) ∅ ) ( cat ( cons ( pt 0 , 110 ) ∅ ) ( cat ( cons ( pt 100 , 110 ) ∅ ) ( cat ( row 100 , 1 , 10 ) ( col 100 , 10 , 100 ) ) ) ) ) )
+≝ ( shape know ) ⇒ ( cat ( cons ( pt 0 , 0 ) ∅ ) ( cat ( cons ( pt 100 , 0 ) ∅ ) ( cat ( cons ( pt 0 , 110 ) ∅ ) ( cat ( cons ( pt 100 , 110 ) ∅ ) ( cat ( col 1 , 1 , 11 ) ( cat ( cons ( pt 11 , 101 ) ∅ ) ( col 0 , 1 , 11 ) ) ) ) ) ) )
+≝ ( shape want ) ⇒ ( cat ( cons ( pt 0 , 0 ) ∅ ) ( cat ( cons ( pt 100 , 0 ) ∅ ) ( cat ( cons ( pt 0 , 110 ) ∅ ) ( cat ( cons ( pt 100 , 110 ) ∅ ) ( cat ( col 0 , 10 , 100 ) ( row 1 , 0 , 11 ) ) ) ) ) )
+≝ ( shape help ) ⇒ ( cat ( cons ( pt 0 , 0 ) ∅ ) ( cat ( cons ( pt 100 , 0 ) ∅ ) ( cat ( cons ( pt 0 , 110 ) ∅ ) ( cat ( cons ( pt 100 , 110 ) ∅ ) ( cat ( row 101 , 10 , 10 ) ( col 11 , 1 , 11 ) ) ) ) ) )
+≝ ( shape we ) ⇒ ( cat ( cons ( pt 0 , 0 ) ∅ ) ( cat ( cons ( pt 100 , 0 ) ∅ ) ( cat ( cons ( pt 0 , 110 ) ∅ ) ( cat ( cons ( pt 100 , 110 ) ∅ ) ( cat ( row 11 , 1 , 11 ) ( col 10 , 1 , 101 ) ) ) ) ) )
+≝ ( shape you ) ⇒ ( cat ( cons ( pt 0 , 0 ) ∅ ) ( cat ( cons ( pt 100 , 0 ) ∅ ) ( cat ( cons ( pt 0 , 110 ) ∅ ) ( cat ( cons ( pt 100 , 110 ) ∅ ) ( cat ( cons ( pt 1 , 10 ) ∅ ) ( cat ( cons ( pt 11 , 10 ) ∅ ) ( cat ( cons ( pt 10 , 11 ) ∅ ) ( col 10 , 100 , 10 ) ) ) ) ) ) ) )
+≝ ( shape , ) ⇒ ( cat ( cons ( pt 0 , 1 ) ∅ ) ( cat ( cons ( pt 100 , 1 ) ∅ ) ( cat ( cons ( pt 0 , 11 ) ∅ ) ( cat ( cons ( pt 100 , 11 ) ∅ ) ( cat ( cons ( pt 0 , 101 ) ∅ ) ( cons ( pt 100 , 101 ) ∅ ) ) ) ) ) )
+
+— rung 4b · the ship, drawn —
+≝ ( picture ship ) ⇒ ( cat ( col 0 , 0 , 11111 ) ( cat ( col 1110 , 0 , 11111 ) ( cat ( row 0 , 0 , 1111 ) ( cat ( row 11110 , 0 , 1111 ) ( cat ( row 100 , 1 , 1101 ) ( cat ( row 1000 , 1 , 1101 ) ( cat ( row 1100 , 1 , 1101 ) ( cat ( row 10000 , 1 , 1101 ) ( cat ( row 10100 , 1 , 1101 ) ( cat ( row 11000 , 1 , 1101 ) ( cat ( rect 100 , 11010 , 111 , 100 ) ( row 10 , 110 , 11 ) ) ) ) ) ) ) ) ) ) ) )
 
 — rung 5 · anchors —
 H tick = 1 tick
@@ -150,9 +256,63 @@ rate = g × clockA height ÷ ( light speed × light speed )
 ( clockA − clockB ) × 1100100 per 11011111001110110110000001101110010010110110011 tick = 10110000111 tick
 ( clockA > clockB ) ⊤
 
-— rung 7 · words —
+— rung 7 · speaking —
+Ha say Hb ( 1 + 1 = 10 )
+Hb say Ha ( 10 + 1 = 11 )
+Ha say Hb ( 10 × 11 = 110 )
+Hb say Ha ( 110 ÷ 10 = 11 )
+
+— rung 7 · asking, answering, judging —
+Ha say Hb ? a ( 10 + a = 101 )
+Hb say Ha ( a = 11 )
+Ha say Hb good
+Ha say Hb ? a ( 10 × a = 110 )
+Hb say Ha ( a = 100 )
+Ha say Hb bad
+Hb say Ha ? a ( 10 × a = 110 )
+Ha say Hb ( a = 11 )
+Hb say Ha good
+Ha say Hb ? a ( a × a = 1001 )
+Hb say Ha ( a = 11 )
+Ha say Hb good
+Ha say Hb ? a ( 1010 − a = 100 )
+Hb say Ha ( a = 101 )
+Ha say Hb bad
+Hb say Ha ? a ( 1010 − a = 100 )
+Ha say Hb ( a = 110 )
+Hb say Ha good
+Ha say Hb ? a ( a + 101 = 1000 )
+Hb say Ha ( a = 11 )
+Ha say Hb good
+Ha say Hb ? a ( 111 < a )
+Hb say Ha ( a = 1001 )
+Ha say Hb good
+Hb say Ha ? a ( 111 < a )
+Ha say Hb ( a = 10 )
+Hb say Ha bad
+
+— rung 7 · knowing —
+Hb ¬ know ( 11 × a = 1100 )
+Hb say Ha ? a ( 11 × a = 1100 )
+Ha say Hb ( a = 100 )
+Hb say Ha good
+Hb know ( 11 × 100 = 1100 )
+Ha know ( 11 × 100 = 1100 )
+( ( Ha know b ) ∧ ( Hb say Ha ? b ) ) ⊃ ( Ha say Hb b )
+
+— rung 7 · wanting —
+Hb want ( Hb know ( 101 × a = 100011 ) )
+Hb say Ha ? a ( 101 × a = 100011 )
+Ha say Hb ( a = 111 )
+Hb say Ha good
+Hb know ( 101 × 111 = 100011 )
+( ( Hb want ( Hb know b ) ) ∧ ( Ha know b ) ) ⊃ ( Hb say Ha ? b )
+
+— rung 7 · the walk: wanting, danger, help —
 target = 111
 danger = 10
+agent want ( agent = target )
+agent ¬ want ( agent = danger )
 agent = 100 step agent = 101 good
 agent = 101 step agent = 110 good
 agent = 110 step agent = 111 good
@@ -160,4 +320,20 @@ agent = 100 step agent = 11 bad
 agent = 11 step agent = 10 bad
 ( agent = target ) good
 ( agent = danger ) bad
-( ( agent > a ) ∧ ( target > agent ) ∧ ( agent step agent + 1 ) ) good
+( ( agent want ( agent = a ) ) ∧ ( agent < a ) ) ⊃ ( agent step agent + 1 )
+Hb = 11
+Hb want ( Hb = 111 )
+Hb say Ha help ( Hb = 111 )
+Ha step Hb = 111
+Hb say Ha good
+( ( a say b help c ) ∧ ( b step c ) ) ⊃ ( a say b good )
+
+— rung 7 · we and you —
+we say you ( 1 + 1 = 10 )
+we say you ( clockA > clockB )
+we want ( you know ( clockA > clockB ) )
+we ¬ know ( pulsar 1 period = a )
+we want ( we know ( pulsar 1 period = a ) )
+we say you ? a ( pulsar 1 period = a )
+we want ( you say we ( pulsar 1 period = a ) )
+we want ( you good )

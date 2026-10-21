@@ -4,7 +4,7 @@ Given only a string of bits it tries to do what a reader of the ladder would do:
 find the token width, the alphabet, whether the thing looks like a language at
 all (Zipf's law, conditional entropy — the tests SETI runs on whale song), the
 statement delimiter, then the counting lesson, then the operators, then truth.
-What it recovers is reported as "token 0x8a means +".  Running this on our own
+What it recovers is reported as "token 0x85 means +".  Running this on our own
 message is the only honest test that the first rungs are decodable; it is also,
 unchanged, the tool for reading someone else's.
 """
@@ -224,6 +224,91 @@ def recover_truth(parsed: Sequence[Sequence[Tuple[str, int]]], meaning: Dict[int
     return found
 
 
+# ---- dialogue: good and bad are judgments the reader can check ------------------------------------
+
+CMP = {"<": lambda a, b: a < b, ">": lambda a, b: a > b}
+
+
+def _bracket_span(p):
+    """The first (...) span of a parsed statement, as (start, end) indices, or None."""
+    depth, start = 0, None
+    for i, (k, v) in enumerate(p):
+        if k != "sym":
+            continue
+        m = MEANING_HINT.get(v)
+        if m == "(":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif m == ")":
+            depth -= 1
+            if depth == 0 and start is not None:
+                return start, i
+    return None
+
+
+MEANING_HINT: Dict[int, str] = {}
+
+
+def _eval_relation(items, meaning, env):
+    """items: a bracketed relation's inner items.  Returns True/False, or None if not evaluable."""
+    vals = []
+    ops = []
+    for k, v in items:
+        if k == "num":
+            vals.append(v)
+        else:
+            m = meaning.get(v)
+            if m in OPS or m in CMP or m == "=":
+                ops.append(m)
+            elif v in env:
+                vals.append(env[v])
+            else:
+                return None
+    if len(ops) == 2 and len(vals) == 3 and ops[0] in OPS and ops[1] == "=":
+        r = OPS[ops[0]](vals[0], vals[1])
+        return r == vals[2]
+    if len(ops) == 1 and len(vals) == 2 and ops[0] in CMP:
+        return CMP[ops[0]](vals[0], vals[1])
+    return None
+
+
+def recover_judgments(parsed, meaning: Dict[int, str]) -> Dict[int, str]:
+    """Question / answer / judgment triples: the token that follows only true answers is GOOD,
+    the one that follows only false answers is BAD, and the symbol that takes a value is a variable."""
+    MEANING_HINT.clear()
+    MEANING_HINT.update(meaning)
+    verdicts: Dict[int, set] = defaultdict(set)
+    variables: Counter = Counter()
+    for i in range(len(parsed) - 2):
+        q, a, j = parsed[i], parsed[i + 1], parsed[i + 2]
+        qs, as_ = _bracket_span(q), _bracket_span(a)
+        if qs is None or as_ is None or len(j) < 2 or j[-1][0] != "sym":
+            continue
+        q_inner = q[qs[0] + 1:qs[1]]
+        a_inner = a[as_[0] + 1:as_[1]]
+        # the answer has the form  var = num
+        if not (len(a_inner) == 3 and a_inner[0][0] == "sym" and meaning.get(a_inner[1][1]) == "=" and a_inner[2][0] == "num"):
+            continue
+        var, val = a_inner[0][1], a_inner[2][1]
+        if not any(k == "sym" and v == var for k, v in q_inner):
+            continue
+        truth = _eval_relation(q_inner, meaning, {var: val})
+        if truth is None:
+            continue
+        verdicts[j[-1][1]].add(truth)
+        variables[var] += 1
+    found: Dict[int, str] = {}
+    for tok, vs in verdicts.items():
+        if vs == {True}:
+            found[tok] = "good"
+        elif vs == {False}:
+            found[tok] = "bad"
+    if variables:
+        found[variables.most_common(1)[0][0]] = "a"
+    return found
+
+
 # ---- bitmaps ----------------------------------------------------------------------------------------
 
 def factor_pairs(n: int) -> List[Tuple[int, int]]:
@@ -266,6 +351,7 @@ def decode_blind(bits: str) -> Dict[str, object]:
     parsed = [parse_numbers(s, zero, one) for s in segs]
     meaning = recover_operators(parsed)
     meaning.update(recover_truth(parsed, meaning))
+    meaning.update(recover_judgments(parsed, meaning))
     meaning[dot] = "·"
     meaning[d] = "⏎"
     meaning[zero] = "0"

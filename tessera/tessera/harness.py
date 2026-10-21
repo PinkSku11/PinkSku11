@@ -33,8 +33,10 @@ Work out, in order:
   2. the two symbols that spell numbers, and which is which;
   3. the symbols for =, +, −, ×, ÷, <, >;
   4. the symbols for TRUE and FALSE, and for NOT, AND, OR, IMPLIES;
-  5. the bracket pair and the symbol that means "rewrites to";
-  6. what the long numbers near the end measure.
+  5. the bracket pair and the symbol that means "rewrites to"; the rules that follow it;
+  6. what the programs near the middle draw (they are lists of pairs);
+  7. who speaks to whom near the end, which symbol asks, and which two symbols judge an answer;
+  8. what the long numbers measure, and what the senders say they want.
 Report a table: symbol → meaning → the evidence (which statements convinced you).
 Do not guess beyond the evidence; say what you could not decode.
 """

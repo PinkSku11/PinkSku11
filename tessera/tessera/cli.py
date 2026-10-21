@@ -60,16 +60,15 @@ def main(argv=None):
         with open(os.path.join(a.out, "transcript.txt"), "w") as f:
             f.write(m.transcript() + "\n")
         pgs = pages.paginate(m.tokens)
-        hydro = pages.hydrogen_page()
-        for i, pg in enumerate([hydro] + pgs, start=0):
-            name = "page-00-hydrogen" if i == 0 else f"page-{i:02d}"
+        specials = [("page-00-hydrogen", pages.hydrogen_page()), ("page-00-pictures", pages.pictures_page(message.SHIP_PICTURE))]
+        for name, pg in specials + [(f"page-{i:02d}", pg) for i, pg in enumerate(pgs, start=1)]:
             pages.write_png(pg, os.path.join(a.out, name + ".png"))
             pages.write_pbm(pg, os.path.join(a.out, name + ".pbm"))
         pages.write_png(pages.glyph_sheet(), os.path.join(a.out, "key-glyph-sheet.png"))
         with open(os.path.join(a.out, "key.txt"), "w") as f:
             for n in glyphs.NAMES:
                 f.write(f"0x{glyphs.code(n):02x}  {n:10s} {glyphs.pretty(n)}\n")
-        print(f"{len(m.tokens)} glyphs, {len(raw)} bits, {len(pgs)} glyph pages + the hydrogen page → {a.out}/")
+        print(f"{len(m.tokens)} glyphs, {len(raw)} bits, {len(pgs)} glyph pages + the hydrogen and pictures pages → {a.out}/")
         print(m.transcript())
     elif a.cmd == "listen":
         with open(a.bits) as f:
